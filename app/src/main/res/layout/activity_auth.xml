@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="@dimen/layoutpadding_all">
+
+    <TextView
+        android:id="@+id/auth_tv_introtext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/text_auth_tv_introtext"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/auth_tv_loginheading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:hint="@string/text_auth_tv_loginheading"
+        android:layout_below="@id/auth_tv_introtext"
+        android:layout_marginTop="32dp" />
+
+    <EditText
+        android:id="@+id/auth_et_loginusername"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/placeholder_auth_et_username"
+        android:layout_below="@id/auth_tv_loginheading" />
+
+    <EditText
+        android:id="@+id/auth_et_loginpassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/placeholder_auth_et_password"
+        android:layout_below="@id/auth_et_loginusername" />
+
+    <Button
+        android:id="@+id/auth_btn_login"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/text_auth_btn_login"
+        android:layout_below="@id/auth_et_loginpassword"
+        style="@style/Widget.AppCompat.Button.Colored" />
+
+    <TextView
+        android:id="@+id/auth_tv_registerheading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:hint="@string/text_auth_tv_registerheading"
+        android:layout_below="@id/auth_btn_login"
+        android:layout_marginTop="32dp" />
+
+    <EditText
+        android:id="@+id/auth_et_registerusername"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/placeholder_auth_et_username"
+        android:layout_below="@id/auth_tv_registerheading" />
+
+    <EditText
+        android:id="@+id/auth_et_registerpassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/placeholder_auth_et_password"
+        android:layout_below="@id/auth_et_registerusername" />
+
+    <Button
+        android:id="@+id/auth_btn_register"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/auth_et_registerpassword"
+        android:text="@string/text_auth_btn_register" />
+
+</RelativeLayout>

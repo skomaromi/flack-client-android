@@ -1,5 +1,17 @@
 <resources>
     <string name="app_name">Flack</string>
 
-    <!-- Strings related to login -->
+    <!-- ServerInputActivity -->
+    <string name="text_srvinput_btn_connect">Connect</string>
+    <string name="text_srvinput_tv_introtext">Enter instance address.</string>
+    <string name="placeholder_srvinput_et_address">192.168.86.29</string>
+
+    <!-- AuthActivity -->
+    <string name="text_auth_tv_introtext">To start chatting, login or register.</string>
+    <string name="text_auth_tv_loginheading">LOGIN</string>
+    <string name="placeholder_auth_et_username">Username</string>
+    <string name="placeholder_auth_et_password">Password</string>
+    <string name="text_auth_btn_login">Log in</string>
+    <string name="text_auth_btn_register">Register</string>
+    <string name="text_auth_tv_registerheading">REGISTER</string>
 </resources>

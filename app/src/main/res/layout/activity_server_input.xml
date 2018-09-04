@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="@dimen/layoutpadding_all">
+
+    <TextView
+        android:id="@+id/srvinput_tv_introtext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/text_srvinput_tv_introtext"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp" />
+
+    <EditText
+        android:id="@+id/srvinput_et_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/placeholder_srvinput_et_address"
+        android:layout_below="@id/srvinput_tv_introtext" />
+
+    <Button
+        android:id="@+id/srvinput_btn_connect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/srvinput_et_address"
+        android:text="@string/text_srvinput_btn_connect" />
+
+</RelativeLayout>
