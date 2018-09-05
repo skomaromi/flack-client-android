@@ -18,6 +18,7 @@ public class FlackApi {
 
     private static final String ENDPOINT_PING = "api/auth/ping/";
     private static final String ENDPOINT_LOGIN = "api/auth/login/";
+    private static final String ENDPOINT_REGISTER = "api/auth/register/";
 
     private static final int HTTP_OK = 200;
     private static final String PING_EXPECTED_RESPONSE = "flack-pong";
@@ -123,6 +124,65 @@ public class FlackApi {
         }
 
         // retrieving token from response
+        String responseBody;
+        try {
+            responseBody = response.body().string();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        String token;
+        try {
+            JSONObject responseJson = new JSONObject(responseBody);
+            token = responseJson.getString("token");
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        return token;
+    }
+
+    public String register(String username, String password) {
+        OkHttpClient client = new OkHttpClient();
+
+        String url = String.format(
+                Locale.ENGLISH,
+                "%s://%s:%d/%s",
+
+                PROTO,
+                address,
+                SERVER_PORT,
+                ENDPOINT_REGISTER
+        );
+
+        RequestBody requestBody = new FormEncodingBuilder()
+                                          .add("username", username)
+                                          .add("password", password)
+                                          .build();
+
+        Request request = new Request.Builder()
+                                  .post(requestBody)
+                                  .url(url)
+                                  .build();
+
+        Response response = null;
+
+        try {
+            response = client.newCall(request).execute();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        // returns HTTP 400 (Bad Request) if provided username already exists
+        if (response.code() != HTTP_OK) {
+            return null;
+        }
+
         String responseBody;
         try {
             responseBody = response.body().string();

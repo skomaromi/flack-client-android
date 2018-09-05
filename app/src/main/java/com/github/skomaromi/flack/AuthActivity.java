@@ -6,6 +6,8 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
+import android.support.design.widget.TextInputEditText;
+import android.support.design.widget.TextInputLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -18,16 +20,30 @@ import butterknife.OnClick;
 import butterknife.OnTextChanged;
 
 public class AuthActivity extends AppCompatActivity {
-    @BindView(R.id.auth_et_loginusername) EditText loginUsernameField;
-    @BindView(R.id.auth_et_loginpassword) EditText loginPasswordField;
-    @BindView(R.id.auth_btn_login) Button loginButton;
+    @BindView(R.id.auth_tie_loginusername)
+    TextInputEditText loginUsernameField;
+    @BindView(R.id.auth_tie_loginpassword)
+    TextInputEditText loginPasswordField;
+    @BindView(R.id.auth_btn_login)
+    Button loginButton;
 
-    @BindView(R.id.auth_et_registerusername) EditText registerUsernameField;
-    @BindView(R.id.auth_et_registerpassword) EditText registerPasswordField;
-    @BindView(R.id.auth_btn_register) Button registerButton;
+    @BindView(R.id.auth_til_registerusername)
+    TextInputLayout registerUsernameFieldContainer;
+    @BindView(R.id.auth_tie_registerusername)
+    TextInputEditText registerUsernameField;
+
+    @BindView(R.id.auth_til_registerpassword)
+    TextInputLayout registerPasswordFieldContainer;
+    @BindView(R.id.auth_tie_registerpassword)
+    TextInputEditText registerPasswordField;
+
+    @BindView(R.id.auth_btn_register)
+    Button registerButton;
 
     public static final String KEY_ADDRESS = "address";
     public static final String KEY_AUTHTOKEN = "authtoken";
+
+    private final String usernameRegex = "^[a-z0-9\\.\\-]*$";
 
     private String address;
 
@@ -53,8 +69,8 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     @OnTextChanged({
-            R.id.auth_et_loginusername,
-            R.id.auth_et_loginpassword
+            R.id.auth_tie_loginusername,
+            R.id.auth_tie_loginpassword
     })
     public void loginTextFieldsChanged() {
         String username, password;
@@ -147,8 +163,8 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     @OnTextChanged({
-            R.id.auth_et_registerusername,
-            R.id.auth_et_registerpassword
+            R.id.auth_tie_registerusername,
+            R.id.auth_tie_registerpassword
     })
     public void registerTextFieldsChanged() {
         String username, password;
@@ -156,10 +172,51 @@ public class AuthActivity extends AppCompatActivity {
         username = registerUsernameField.getText().toString();
         password = registerPasswordField.getText().toString();
 
+        boolean usernameOk =
+                !username.isEmpty() &&
+                username.matches(usernameRegex);
+
+        boolean passwordOk =
+                !password.isEmpty() &&
+                password.length() >= 6;
+
         // TODO: check if user available
-        boolean shouldEnable = !username.isEmpty() && !password.isEmpty();
+        boolean shouldEnable = usernameOk && passwordOk;
 
         registerButton.setEnabled(shouldEnable);
+    }
+
+    @OnTextChanged(R.id.auth_tie_registerusername)
+    public void registerUsernameFieldChanged() {
+        String username = registerUsernameField.getText().toString();
+
+        if (!username.matches(usernameRegex)) {
+            registerUsernameFieldContainer.setError(
+                    "Allowed characters are lowercase letters, digits, dots " +
+                            "and hyphens."
+            );
+        }
+        else {
+            registerUsernameFieldContainer.setError(null);
+            // setErrorEnabled(false) hides the space created by a potential
+            // previous setError(<non-null String>) call
+            registerUsernameFieldContainer.setErrorEnabled(false);
+        }
+    }
+
+    @OnTextChanged(R.id.auth_tie_registerpassword)
+    public void registerPasswordFieldChanged() {
+        String password = registerPasswordField.getText().toString();
+
+        if (password.length() < 6) {
+            registerPasswordFieldContainer.setError(
+                    "Password must be at least 6 characters long."
+            );
+        }
+        else {
+            registerPasswordFieldContainer.setError(null);
+            registerPasswordFieldContainer.setErrorEnabled(false);
+        }
     }
 
     @OnClick(R.id.auth_btn_register)
@@ -169,19 +226,82 @@ public class AuthActivity extends AppCompatActivity {
         username = registerUsernameField.getText().toString();
         password = registerPasswordField.getText().toString();
 
-        BackgroundLoginTask t = new BackgroundLoginTask(this);
+        BackgroundRegisterTask t = new BackgroundRegisterTask(this);
         t.execute();
     }
 
-    private void authTaskReturnHandler(String token) {
+    private class BackgroundRegisterTask extends AsyncTask<Void, Void, String> {
+        private ProgressDialog progressDialog;
+
+        public BackgroundRegisterTask(AuthActivity activity) {
+            progressDialog = new ProgressDialog(activity);
+        }
+
+        @Override
+        protected void onPreExecute() {
+            progressDialog.setMessage("Registering...");
+            progressDialog.show();
+        }
+
+        @Override
+        protected String doInBackground(Void... args) {
+            // TODO: use exceptions to detect error type
+            String username, password;
+            String token;
+
+            username = registerUsernameField.getText().toString();
+            password = registerPasswordField.getText().toString();
+
+            FlackApi api = new FlackApi(address);
+            token = api.register(username, password);
+
+            return token;
+        }
+
+        @Override
+        protected void onPostExecute(String token) {
+            if (progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+
+            registerTastReturnHandler(token);
+        }
+    }
+
+    private void registerTastReturnHandler(String token) {
         if (token != null) {
-            Log.d(Constants.APP_NAME, "good token!");
-            // TODO: finish activity, return token
+            Log.d(
+                    Constants.APP_NAME,
+                    "(ok) registration successful, token retrieved"
+            );
+
+            Intent data = new Intent();
+
+            data.putExtra(KEY_AUTHTOKEN, token);
+            setResult(Activity.RESULT_OK, data);
+            finish();
         }
         else {
-            Log.d(Constants.APP_NAME, "bad token!");
-            // TODO: show error dialog
-            // "Incorrect username or password. Please try again."
+            Log.d(
+                    Constants.APP_NAME,
+                    "(err) problems occurred while registering"
+            );
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setMessage(
+                    "Username not available. Please try specifying a " +
+                            "different one."
+            );
+
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+
+            AlertDialog dialog = builder.create();
+            dialog.show();
         }
     }
 }

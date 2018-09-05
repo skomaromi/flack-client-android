@@ -1,73 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="@dimen/layoutpadding_all">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/auth_tv_introtext"
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/text_auth_tv_introtext"
-        android:layout_marginTop="8dp" />
+        android:padding="@dimen/layoutpadding_all">
 
-    <TextView
-        android:id="@+id/auth_tv_loginheading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:hint="@string/text_auth_tv_loginheading"
-        android:layout_below="@id/auth_tv_introtext"
-        android:layout_marginTop="32dp" />
+        <TextView
+            android:id="@+id/auth_tv_introtext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/text_auth_tv_introtext"
+            android:layout_marginBottom="8dp" />
 
-    <EditText
-        android:id="@+id/auth_et_loginusername"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/placeholder_auth_et_username"
-        android:layout_below="@id/auth_tv_loginheading" />
+        <TextView
+            android:id="@+id/auth_tv_loginheading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="@string/text_auth_tv_loginheading"
+            android:layout_below="@id/auth_tv_introtext"
+            android:layout_marginBottom="8dp" />
 
-    <EditText
-        android:id="@+id/auth_et_loginpassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/placeholder_auth_et_password"
-        android:layout_below="@id/auth_et_loginusername" />
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/auth_til_loginusername"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/auth_tv_loginheading">
 
-    <Button
-        android:id="@+id/auth_btn_login"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/text_auth_btn_login"
-        android:layout_below="@id/auth_et_loginpassword"
-        style="@style/Widget.AppCompat.Button.Colored" />
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/auth_tie_loginusername"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/placeholder_auth_et_username"
+                android:inputType="text" />
 
-    <TextView
-        android:id="@+id/auth_tv_registerheading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:hint="@string/text_auth_tv_registerheading"
-        android:layout_below="@id/auth_btn_login"
-        android:layout_marginTop="32dp" />
+        </android.support.design.widget.TextInputLayout>
 
-    <EditText
-        android:id="@+id/auth_et_registerusername"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/placeholder_auth_et_username"
-        android:layout_below="@id/auth_tv_registerheading" />
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/auth_til_loginpassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:passwordToggleEnabled="true"
+            android:layout_below="@id/auth_til_loginusername">
 
-    <EditText
-        android:id="@+id/auth_et_registerpassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/placeholder_auth_et_password"
-        android:layout_below="@id/auth_et_registerusername" />
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/auth_tie_loginpassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Password"
+                android:inputType="textPassword" />
 
-    <Button
-        android:id="@+id/auth_btn_register"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/auth_et_registerpassword"
-        android:text="@string/text_auth_btn_register" />
+        </android.support.design.widget.TextInputLayout>
 
-</RelativeLayout>
+        <Button
+            android:id="@+id/auth_btn_login"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/text_auth_btn_login"
+            android:layout_below="@id/auth_til_loginpassword"
+            style="@style/Widget.AppCompat.Button.Colored" />
+
+        <TextView
+            android:id="@+id/auth_tv_registerheading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="@string/text_auth_tv_registerheading"
+            android:layout_below="@id/auth_btn_login"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/auth_til_registerusername"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/auth_tv_registerheading">
+
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/auth_tie_registerusername"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/placeholder_auth_et_username"
+                android:inputType="text" />
+
+        </android.support.design.widget.TextInputLayout>
+
+        <android.support.design.widget.TextInputLayout
+            android:id="@+id/auth_til_registerpassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:passwordToggleEnabled="true"
+            android:layout_below="@id/auth_til_registerusername">
+
+            <android.support.design.widget.TextInputEditText
+                android:id="@+id/auth_tie_registerpassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/placeholder_auth_et_password"
+                android:inputType="textPassword" />
+
+        </android.support.design.widget.TextInputLayout>
+
+        <Button
+            android:id="@+id/auth_btn_register"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/auth_til_registerpassword"
+            android:text="@string/text_auth_btn_register" />
+
+    </RelativeLayout>
+
+</ScrollView>
