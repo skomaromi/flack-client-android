@@ -12,7 +12,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
-import android.widget.EditText;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -95,10 +94,12 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private class BackgroundLoginTask extends AsyncTask<Void, Void, String> {
+        private AuthActivity activity;
         private ProgressDialog progressDialog;
 
         public BackgroundLoginTask(AuthActivity activity) {
             progressDialog = new ProgressDialog(activity);
+            this.activity = activity;
         }
 
         @Override
@@ -117,7 +118,7 @@ public class AuthActivity extends AppCompatActivity {
 
             // TODO: detect connection errors
             FlackApi api = new FlackApi(address);
-            token = api.login(username, password);
+            token = api.login(username, password, activity);
 
             return token;
         }
@@ -231,10 +232,12 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private class BackgroundRegisterTask extends AsyncTask<Void, Void, String> {
+        private AuthActivity activity;
         private ProgressDialog progressDialog;
 
         public BackgroundRegisterTask(AuthActivity activity) {
             progressDialog = new ProgressDialog(activity);
+            this.activity = activity;
         }
 
         @Override
@@ -253,7 +256,7 @@ public class AuthActivity extends AppCompatActivity {
             password = registerPasswordField.getText().toString();
 
             FlackApi api = new FlackApi(address);
-            token = api.register(username, password);
+            token = api.register(username, password, activity);
 
             return token;
         }
@@ -264,11 +267,11 @@ public class AuthActivity extends AppCompatActivity {
                 progressDialog.dismiss();
             }
 
-            registerTastReturnHandler(token);
+            registerTaskReturnHandler(token);
         }
     }
 
-    private void registerTastReturnHandler(String token) {
+    private void registerTaskReturnHandler(String token) {
         if (token != null) {
             Log.d(
                     Constants.APP_NAME,

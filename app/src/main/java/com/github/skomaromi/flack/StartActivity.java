@@ -21,6 +21,7 @@ public class StartActivity extends AppCompatActivity {
     @BindView(R.id.start_tv_progress) TextView progressLabel;
 
     private BackgroundInitTask initTask;
+    private SharedPreferencesHelper prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +29,7 @@ public class StartActivity extends AppCompatActivity {
         setContentView(R.layout.activity_start);
         ButterKnife.bind(this);
 
+        prefs = new SharedPreferencesHelper(this);
         init();
     }
 
@@ -104,8 +106,8 @@ public class StartActivity extends AppCompatActivity {
             //
             postProgress("checking stored server settings...");
 
-            String serverAddr = getStringFromPreferences(
-                    Constants.SP_KEY_SERVERADDR
+            String serverAddr = prefs.getString(
+                    SharedPreferencesHelper.KEY_SERVERADDR
             );
             if (serverAddr != null) {
                 postProgress("testing connection to server...");
@@ -156,8 +158,8 @@ public class StartActivity extends AppCompatActivity {
 
                 if (FlackApi.testConnection(Constants.SERVER_DEFAULT_ADDR)) {
                     logMessage("storing primary default server address...");
-                    setStringToPreferences(
-                            Constants.SP_KEY_SERVERADDR,
+                    prefs.save(
+                            SharedPreferencesHelper.KEY_SERVERADDR,
                             Constants.SERVER_DEFAULT_ADDR
                     );
                     serverAddr = Constants.SERVER_DEFAULT_ADDR;
@@ -166,10 +168,11 @@ public class StartActivity extends AppCompatActivity {
                         Constants.SERVER_DEFAULT_ADDR_ALT
                 )) {
                     logMessage("storing secondary default server address...");
-                    setStringToPreferences(
-                            Constants.SP_KEY_SERVERADDR,
+                    prefs.save(
+                            SharedPreferencesHelper.KEY_SERVERADDR,
                             Constants.SERVER_DEFAULT_ADDR_ALT
                     );
+
                     serverAddr = Constants.SERVER_DEFAULT_ADDR_ALT;
                 }
                 else {
@@ -187,12 +190,11 @@ public class StartActivity extends AppCompatActivity {
             //
             postProgress("checking authentication data...");
 
-            String authToken = getStringFromPreferences(
-                    Constants.SP_KEY_AUTHTOKEN
+            String authToken = prefs.getString(
+                    SharedPreferencesHelper.KEY_AUTHTOKEN
             );
             if (authToken != null) {
-                // TODO: RoomsActivity [part 1]
-                showRoomsActivity();
+                showRoomsActivity(serverAddr, authToken);
             }
             else {
                 showAuthActivity(serverAddr);
@@ -239,26 +241,6 @@ public class StartActivity extends AppCompatActivity {
         }
     }
 
-    private String getStringFromPreferences(String key) {
-        SharedPreferences prefs = getSharedPreferences(
-                Constants.APP_PKG_NAME,
-                Context.MODE_PRIVATE
-        );
-
-        return prefs.getString(key, null);
-    }
-
-    private void setStringToPreferences(String key, String value) {
-        SharedPreferences prefs = getSharedPreferences(
-                Constants.APP_PKG_NAME,
-                Context.MODE_PRIVATE
-        );
-
-        SharedPreferences.Editor editor = prefs.edit();
-
-        editor.putString(key, value).apply();
-    }
-
     private void showServerInputActivity(String address) {
         Intent serverInputActivity = new Intent(
                 this, ServerInputActivity.class
@@ -284,6 +266,15 @@ public class StartActivity extends AppCompatActivity {
         startActivityForResult(authActivity, Constants.REQCODE_ACTIVITY_AUTH);
     }
 
+    private void showRoomsActivity(String address, String token) {
+        Intent roomsActivity = new Intent(this, RoomsActivity.class);
+        roomsActivity.putExtra(RoomsActivity.KEY_ADDRESS, address);
+        roomsActivity.putExtra(RoomsActivity.KEY_AUTHTOKEN, token);
+
+        startActivity(roomsActivity);
+        finish();
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode,
                                     Intent data) {
@@ -299,7 +290,7 @@ public class StartActivity extends AppCompatActivity {
                         ServerInputActivity.KEY_ADDRESS
                 );
 
-                setStringToPreferences(Constants.SP_KEY_SERVERADDR, address);
+                prefs.save(SharedPreferencesHelper.KEY_SERVERADDR, address);
 
                 init();
             }
@@ -315,7 +306,7 @@ public class StartActivity extends AppCompatActivity {
 
                 String token = data.getStringExtra(AuthActivity.KEY_AUTHTOKEN);
 
-                setStringToPreferences(Constants.SP_KEY_AUTHTOKEN, token);
+                prefs.save(SharedPreferencesHelper.KEY_AUTHTOKEN, token);
 
                 init();
             }
@@ -323,11 +314,6 @@ public class StartActivity extends AppCompatActivity {
                 finish();
             }
         }
-    }
-
-    private void showRoomsActivity() {
-        // TODO: RoomsActivity [part 2]
-        Log.d(Constants.APP_NAME, "showRoomsActivity(): NOT IMPLEMENTED!");
     }
 
     // TODO: remove if not needed

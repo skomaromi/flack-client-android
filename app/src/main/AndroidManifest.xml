@@ -20,7 +20,14 @@
             </intent-filter>
         </activity>
         <activity android:name=".AuthActivity" />
-        <activity android:name=".ServerInputActivity"></activity>
+        <activity android:name=".ServerInputActivity" />
+        <activity android:name=".RoomsActivity" />
+        <activity android:name=".MessagesActivity" />
+
+        <service
+            android:name=".WebSocketsService"
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>
