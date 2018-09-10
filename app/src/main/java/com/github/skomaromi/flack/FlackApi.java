@@ -17,8 +17,6 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class FlackApi {
-    private static final String PROTO = "http";
-
     private static final String ENDPOINT_PING = "api/auth/ping/";
     private static final String ENDPOINT_LOGIN = "api/auth/login/";
     private static final String ENDPOINT_REGISTER = "api/auth/register/";
@@ -47,7 +45,7 @@ public class FlackApi {
                 Locale.ENGLISH,
                 "%s://%s:%d/%s",
 
-                PROTO,
+                Constants.SERVER_PROTO,
                 address,
                 Constants.SERVER_PORT,
                 ENDPOINT_PING
@@ -98,7 +96,7 @@ public class FlackApi {
                 Locale.ENGLISH,
                 "%s://%s:%d/%s",
 
-                PROTO,
+                Constants.SERVER_PROTO,
                 address,
                 Constants.SERVER_PORT,
                 ENDPOINT_LOGIN
@@ -169,7 +167,7 @@ public class FlackApi {
                 Locale.ENGLISH,
                 "%s://%s:%d/%s",
 
-                PROTO,
+                Constants.SERVER_PROTO,
                 address,
                 Constants.SERVER_PORT,
                 ENDPOINT_REGISTER
@@ -237,7 +235,7 @@ public class FlackApi {
                 Locale.ENGLISH,
                 "%s://%s:%d/%s",
 
-                PROTO,
+                Constants.SERVER_PROTO,
                 address,
                 Constants.SERVER_PORT,
                 ENDPOINT_ROOMS
@@ -295,7 +293,7 @@ public class FlackApi {
                 Locale.ENGLISH,
                 "%s://%s:%d/%s",
 
-                PROTO,
+                Constants.SERVER_PROTO,
                 address,
                 Constants.SERVER_PORT,
                 ENDPOINT_ROOMS
@@ -304,7 +302,7 @@ public class FlackApi {
                 Locale.ENGLISH,
                 "%s://%s:%d/%s",
 
-                PROTO,
+                Constants.SERVER_PROTO,
                 address,
                 Constants.SERVER_PORT,
                 ENDPOINT_MESSAGES

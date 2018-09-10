@@ -84,11 +84,6 @@ public class AuthActivity extends AppCompatActivity {
 
     @OnClick(R.id.auth_btn_login)
     public void login() {
-        String username, password;
-
-        username = loginUsernameField.getText().toString();
-        password = loginPasswordField.getText().toString();
-
         BackgroundLoginTask t = new BackgroundLoginTask(this);
         t.execute();
     }
@@ -222,11 +217,6 @@ public class AuthActivity extends AppCompatActivity {
 
     @OnClick(R.id.auth_btn_register)
     public void register() {
-        String username, password;
-
-        username = registerUsernameField.getText().toString();
-        password = registerPasswordField.getText().toString();
-
         BackgroundRegisterTask t = new BackgroundRegisterTask(this);
         t.execute();
     }

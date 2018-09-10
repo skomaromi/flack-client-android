@@ -21,7 +21,8 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
 public class WebSocketService extends Service {
-    public static final int NOT_ON_MESSAGE_ACTIVITY = -1;
+    public static final int CR_NONE = -1;
+    public static final int CR_ROOM_LIST = -2;
     public static final int TYPE_ROOM = 1;
     public static final int TYPE_MESSAGE = 2;
     public static final int TYPE_MESSAGELITE = 3;
@@ -32,6 +33,7 @@ public class WebSocketService extends Service {
     public static final String KEY_ROOM_NAME = "name";
     public static final String KEY_ROOM_TIMECREATED = "time_created";
 
+    public static final String KEY_MESSAGE_ROOMID = "room_id";
     public static final String KEY_MESSAGE_SENDER = "sender";
     public static final String KEY_MESSAGE_CONTENT = "content";
     public static final String KEY_MESSAGE_TIMECREATED = "time_created";
@@ -71,6 +73,9 @@ public class WebSocketService extends Service {
         @Override
         public void onFailure(WebSocket webSocket, Throwable t, @Nullable Response response) {
             super.onFailure(webSocket, t, response);
+            if (t != null) {
+                t.printStackTrace();
+            }
             Log.d(Constants.APP_NAME, "FWSL: websocket failure");
         }
 
@@ -146,12 +151,11 @@ public class WebSocketService extends Service {
                     int senderId = attr.getInt("sender_id");
                     String senderUnique = attr.getString("sender_unique");
 
-                    boolean onRoomList = bound && currentRoom == NOT_ON_MESSAGE_ACTIVITY;
+                    boolean onRoomList = currentRoom == CR_ROOM_LIST;
 
                     String notificationObjectType = attr.getString("object");
 
                     if (notificationObjectType.equals("room")) {
-                        // DONE: do room stuff here
                         JSONArray participantsJson = attr.getJSONArray("participants");
 
                         // room db data
@@ -161,17 +165,12 @@ public class WebSocketService extends Service {
 
                         if (jsonArrayContains(participantsJson, userId)) {
                             boolean differentUser = senderId != userId;
+                            boolean isFromAnyOtherDevice = !senderUnique.equals(usernameUnique);
 
-                            //boolean sameUserAnotherClient = !differentUser && !senderUnique.equals(usernameUnique);
-                            boolean anyOtherDeviceThanThis = !senderUnique.equals(usernameUnique);
-
-                            //boolean shouldSyncAddDb = differentUser || sameUserAnotherClient;
-
+                            boolean shouldDoSyncBroadcastDb = isFromAnyOtherDevice;
                             boolean shouldSendNotification = differentUser && !onRoomList;
 
-                            // boolean shouldSendBroadcast = differentUser || sameUserAnotherClient;
-
-                            if (anyOtherDeviceThanThis) {
+                            if (shouldDoSyncBroadcastDb) {
                                 updateRoomSyncData(id, created);
                                 sqlHelper.addRoom(id, name, created);
                                 sendRoomBroadcast(id, name, created);
@@ -180,65 +179,9 @@ public class WebSocketService extends Service {
                             if (shouldSendNotification) {
                                 sendRoomNotification(id, name, sender);
                             }
-
-                            /*
-                            if (shouldSyncAddDb) {
-                                updateRoomSyncData(id, created);
-                                sqlHelper.addRoom(id, name, created);
-                            }
-
-                            if (shouldSendNotification) {
-                                sendRoomNotification(id, name, sender);
-                            }
-                            else if (shouldSendBroadcast) {
-                                sendRoomBroadcast(id, name, created);
-                            }
-                            */
-
-                            /*
-                            if (senderId != userId) {
-                                // is a room user is a part of
-                                // sender is not user
-                                if (onRoomList) {
-                                    updateRoomSyncData(id, created);
-                                    sqlHelper.addRoom(id, name, created);
-                                    sendRoomBroadcast(id, name, created);
-                                    // DONE: db+broadcast
-                                    Log.d(Constants.APP_NAME, "FWSL: new room | db+list");
-                                }
-                                else {
-                                    updateRoomSyncData(id, created);
-                                    sqlHelper.addRoom(id, name, created);
-                                    sendRoomNotification(id, name, sender);
-                                    // DONE: make notification, add to db
-                                    Log.d(Constants.APP_NAME, "FWSL: new room | notif+db");
-                                }
-                            }
-
-                            else if (!senderUnique.equals(usernameUnique)) {
-                                // is a room user is a part of
-                                // sender is user, but different client signature
-                                if (onRoomList) {
-                                    updateRoomSyncData(id, created);
-                                    sqlHelper.addRoom(id, name, created);
-                                    sendRoomBroadcast(id, name, created);
-                                    // DONE: db+broadcast
-                                    Log.d(Constants.APP_NAME, "FWSL: new room by user | db+list");
-                                }
-                                else {
-                                    updateRoomSyncData(id, created);
-                                    sqlHelper.addRoom(id, name, created);
-                                    // DONE: add to db
-                                    Log.d(Constants.APP_NAME, "FWSL: new room by user | db");
-                                }
-                            }
-                            else { Log.d(Constants.APP_NAME, "FWSL: new room by user | SAMECLIENT!"); }
-                            */
                         }
-                        // else { Log.d(Constants.APP_NAME, "FWSL: new room | USERNOTINROOM!"); }
                     }
                     else if (notificationObjectType.equals("message")) {
-                        // TODO: do message stuff here
                         JSONArray participantsJson = attr.getJSONArray("room_participants");
 
                         // db data
@@ -271,25 +214,21 @@ public class WebSocketService extends Service {
                         int messageId = attr.getInt("message_id");
 
                         // notif data
-                        // TODO: FIX THIS!
-                        String roomName = "test";
+                        String roomName = attr.getString("room_name");
 
                         if (jsonArrayContains(participantsJson, userId)) {
-                            boolean anyOtherDeviceThanThis = !senderUnique.equals(usernameUnique);
+                            boolean isFromAnyOtherDevice = !senderUnique.equals(usernameUnique);
                             boolean differentUser = senderId != userId;
                             boolean onMessageRoom = roomId == currentRoom;
 
-                            boolean shouldSyncAddDb = anyOtherDeviceThanThis;
-                            boolean shouldSendMessageBroadcasts = anyOtherDeviceThanThis && bound;
+                            boolean shouldDoSyncBroadcastDb = isFromAnyOtherDevice;
                             boolean shouldSendMessageNotification = differentUser && (!onMessageRoom && !onRoomList);
 
-                            if (shouldSyncAddDb) {
+                            if (shouldDoSyncBroadcastDb) {
                                 updateMessageSyncData(messageId, timeCreated);
                                 sqlHelper.addMessage(roomId, message);
-                            }
-
-                            if (shouldSendMessageBroadcasts) {
                                 sendMessageBroadcast(
+                                        roomId,
                                         sender,
                                         content,
                                         timeCreated,
@@ -302,7 +241,7 @@ public class WebSocketService extends Service {
                                 );
                                 sendMessageLiteBroadcast(
                                         roomId,
-                                        content,
+                                        message.toString(),
                                         timeCreated
                                 );
                             }
@@ -310,100 +249,9 @@ public class WebSocketService extends Service {
                             if (shouldSendMessageNotification) {
                                 sendMessageNotification(roomId, roomName, sender);
                             }
-
-                            /*
-                            boolean shouldSync = anyOtherDeviceThanThis;
-                            boolean shouldAddToDb = anyOtherDeviceThanThis;
-                            boolean shouldSendMessageBroadcast = anyOtherDeviceThanThis && bound;
-                            boolean shouldSendMessageLiteBroadcast = anyOtherDeviceThanThis && bound;
-                            boolean shouldSendMessageNotification = differentUser && (!onMessageRoom && !onRoomList);
-                            */
-
-
-                            /*
-                            if (senderId != userId) {
-                                if (roomId == currentRoom) {
-                                    updateMessageSyncData(messageId, timeCreated);
-                                    sqlHelper.addMessage(roomId, message);
-                                    sendMessageBroadcast(
-                                            sender,
-                                            content,
-                                            timeCreated,
-                                            location == null,
-                                            latitude,
-                                            longitude,
-                                            file == null,
-                                            hash,
-                                            name
-                                    );
-                                }
-                                else if (onRoomList) {
-                                    updateMessageSyncData(messageId, timeCreated);
-                                    sqlHelper.addMessage(roomId, message);
-                                    sendMessageLiteBroadcast(
-                                            roomId,
-                                            content,
-                                            timeCreated
-                                    );
-                                    // TODO: db+broadcast
-                                    Log.d(Constants.APP_NAME, "FWSL: new message | db+list");
-                                }
-                                else {
-                                    // is a room user is a part of
-                                    // sender is not user
-                                    // no list activity is visible
-                                    updateMessageSyncData(messageId, timeCreated);
-                                    sqlHelper.addMessage(roomId, message);
-                                    sendMessageNotification(roomId, roomName, sender);
-                                    // TODO: notification+db
-                                    Log.d(Constants.APP_NAME, "FWSL: new message | notif+db");
-                                }
-                            }
-                            else if (!senderUnique.equals(usernameUnique)) {
-                                // is a room user is a part of
-                                // sender is user, but different client signature
-                                if (roomId == currentRoom) {
-                                    updateMessageSyncData(messageId, timeCreated);
-                                    sqlHelper.addMessage(roomId, message);
-                                    sendMessageBroadcast(
-                                            sender,
-                                            content,
-                                            timeCreated,
-                                            location == null,
-                                            latitude,
-                                            longitude,
-                                            file == null,
-                                            hash,
-                                            name
-                                    );
-                                }
-                                else if (onRoomList) {
-                                    updateMessageSyncData(messageId, timeCreated);
-                                    sqlHelper.addMessage(roomId, message);
-                                    sendMessageLiteBroadcast(
-                                            roomId,
-                                            content,
-                                            timeCreated
-                                    );
-                                    // TODO: db+broadcast
-                                    Log.d(Constants.APP_NAME, "FWSL: new message by user | db+list");
-                                }
-                                else {
-                                    // is a room user is a part of
-                                    // no list activity visible
-                                    updateMessageSyncData(messageId, timeCreated);
-                                    sqlHelper.addMessage(roomId, message);
-                                    // TODO: add to db
-                                    Log.d(Constants.APP_NAME, "FWSL: new message by user | db");
-                                }
-                            }
-                            else { Log.d(Constants.APP_NAME, "FWSL: new message by user | SAMECLIENT!"); }
-                            */
                         }
-                        else { Log.d(Constants.APP_NAME, "FWSL: new message | USERNOTINROOM!"); }
                     }
                 }
-                else { Log.d(Constants.APP_NAME, "FWSL: unexpected WS message type"); }
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -425,7 +273,7 @@ public class WebSocketService extends Service {
 
         alreadyStarted = false;
         bound = false;
-        currentRoom = NOT_ON_MESSAGE_ACTIVITY;
+        currentRoom = CR_NONE;
     }
 
     @Override
@@ -487,7 +335,7 @@ public class WebSocketService extends Service {
     @Override
     public boolean onUnbind(Intent intent) {
         bound = false;
-        currentRoom = NOT_ON_MESSAGE_ACTIVITY;
+        currentRoom = CR_NONE;
 
         // will return false, causing the currently unimplemented onRebind method not to be fired
         return super.onUnbind(intent);
@@ -525,7 +373,7 @@ public class WebSocketService extends Service {
                 .setSmallIcon(android.R.drawable.sym_action_chat)
                 .setContentIntent(pendingIntent)
                 .setDefaults(Notification.DEFAULT_ALL)
-                .setPriority(Notification.PRIORITY_HIGH)
+                .setAutoCancel(true)
                 .build();
 
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -544,13 +392,14 @@ public class WebSocketService extends Service {
         sendBroadcast(broadcast);
     }
 
-    private void sendMessageBroadcast(String sender, String content, long created,
+    private void sendMessageBroadcast(int roomId, String sender, String content, long created,
                                       boolean isLocationNull, float locationLatitude, float locationLongitude,
                                       boolean isFileNull, String fileHash, String fileName) {
         Intent broadcast = new Intent();
         broadcast.setAction(Constants.APP_PKG_NAME);
 
         broadcast.putExtra(KEY_OBJECTTYPE, TYPE_MESSAGE);
+        broadcast.putExtra(KEY_MESSAGE_ROOMID, roomId);
         broadcast.putExtra(KEY_MESSAGE_SENDER, sender);
         broadcast.putExtra(KEY_MESSAGE_CONTENT, content);
         broadcast.putExtra(KEY_MESSAGE_TIMECREATED, created);

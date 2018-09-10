@@ -11,6 +11,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.View;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,10 +22,15 @@ import butterknife.ButterKnife;
 
 public class RoomActivity extends AppCompatActivity {
     @BindView(R.id.room_rv) RecyclerView recyclerView;
+    @BindView(R.id.room_tv_norooms) TextView noRoomsMessage;
 
     public static final String KEY_ADDRESS = "address";
     public static final String KEY_AUTHTOKEN = "authtoken";
 
+    /*
+     * TODO: remove address and token variables as well as any related code
+     * such as intent data insertion code in StartActivity
+     */
     private String address, token;
 
     private ArrayList<Room> mRoomArrayList;
@@ -37,7 +44,7 @@ public class RoomActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             WebSocketService.LocalBinder binder = (WebSocketService.LocalBinder) service;
             mService = binder.getService();
-
+            mService.setCurrentRoom(WebSocketService.CR_ROOM_LIST);
         }
 
         @Override
@@ -96,21 +103,22 @@ public class RoomActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        Intent webSocketsService = new Intent(this, WebSocketService.class);
-        startService(webSocketsService);
-        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
+        bindWebSocketsService();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        unbindService(mConnection);
+        if (mService != null) {
+            mService.setCurrentRoom(WebSocketService.CR_NONE);
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         unregisterReceiver(mBroadcastReceiver);
+        unbindService(mConnection);
     }
 
     private void setUpBroadcastReceiver() {
@@ -144,11 +152,24 @@ public class RoomActivity extends AppCompatActivity {
 
         recyclerView.setLayoutManager(linearLayout);
         recyclerView.setAdapter(mAdapter);
+
+        roomNumberChanged();
     }
 
     private void addRoom(int id, String name, long created) {
         mRoomArrayList.add(0, new Room(id, name, created));
         mAdapter.notifyDataSetChanged();
+
+        roomNumberChanged();
+    }
+
+    private void roomNumberChanged() {
+        if (mRoomArrayList.isEmpty()) {
+            noRoomsMessage.setVisibility(View.VISIBLE);
+        }
+        else {
+            noRoomsMessage.setVisibility(View.GONE);
+        }
     }
 
     private void addMessage(int roomId, String messageText, long messageTime) {
@@ -172,5 +193,10 @@ public class RoomActivity extends AppCompatActivity {
     private void startWebSocketsService() {
         Intent webSocketsService = new Intent(this, WebSocketService.class);
         startService(webSocketsService);
+    }
+
+    private void bindWebSocketsService() {
+        Intent webSocketsService = new Intent(this, WebSocketService.class);
+        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
     }
 }

@@ -16,6 +16,11 @@
     <string name="text_auth_tv_registerheading">REGISTER</string>
 
     <!-- RoomActivity -->
+    <string name="title_room_activitylabel">Rooms</string>
     <string name="text_room_tv_norooms">No rooms yet. Create one or wait for
-        your friends to add you in one.</string>
+        your friends to add you.</string>
+
+    <!-- MessageActivity -->
+    <string name="text_message_tv_nomessages">No messages here yet. Be the first one to send something!</string>
+
 </resources>

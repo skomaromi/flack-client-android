@@ -139,6 +139,23 @@ class SqlHelper extends SQLiteOpenHelper {
         return rooms;
     }
 
+    public Room getRoom(int roomId) {
+        SQLiteDatabase database = getReadableDatabase();
+
+        if (database != null && database.isOpen()) {
+            String query = "SELECT * FROM " + RoomEntry.TABLE + " WHERE " + RoomEntry.COL_SERVERID + " = " + roomId;
+            Cursor cursor = database.rawQuery(query, null);
+            if (cursor != null) {
+                cursor.moveToFirst();
+                return makeRoom(cursor);
+            }
+
+            database.close();
+        }
+
+        return null;
+    }
+
     public ArrayList<Message> getMessages(int roomId) {
         ArrayList<Message> messages = new ArrayList<>();
         SQLiteDatabase database = getReadableDatabase();

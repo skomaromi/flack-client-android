@@ -7,9 +7,11 @@ public class Constants {
     public static final int REQCODE_ACTIVITY_AUTH = 1;
     public static final int REQCODE_ACTIVITY_SERVERINPUT = 2;
 
+    public static final String SERVER_PROTO = "http";
     public static final String SERVER_DEFAULT_ADDR = "flackserver";
     public static final String SERVER_DEFAULT_ADDR_ALT = "flackserver.local";
     public static final int SERVER_PORT = 8000;
+    public static final int SERVER_IPFS_PORT = 8080;
 
     public static final String DB_NAME = "com.github.skomaromi.flack.db";
     public static final int DB_VERSION = 1;
