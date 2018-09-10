@@ -15,7 +15,7 @@
     <string name="text_auth_btn_register">Register</string>
     <string name="text_auth_tv_registerheading">REGISTER</string>
 
-    <!-- RoomsActivity -->
-    <string name="text_rooms_tv_norooms">No rooms yet. Create one or wait for
+    <!-- RoomActivity -->
+    <string name="text_room_tv_norooms">No rooms yet. Create one or wait for
         your friends to add you in one.</string>
 </resources>

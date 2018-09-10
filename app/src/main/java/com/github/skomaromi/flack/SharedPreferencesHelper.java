@@ -8,6 +8,10 @@ public class SharedPreferencesHelper {
     public static final String KEY_USERID = "user_server_id";
     public static final String KEY_SERVERADDR = "server_address";
     public static final String KEY_AUTHTOKEN = "auth_token";
+    public static final String KEY_SYNC_ROOMID = "sync_roomid";
+    public static final String KEY_SYNC_ROOMTIME = "sync_roomtime";
+    public static final String KEY_SYNC_MESSAGEID = "sync_messageid";
+    public static final String KEY_SYNC_MESSAGETIME = "sync_messagetime";
 
     private SharedPreferences mPreferences;
     private SharedPreferences.Editor mEditor;
@@ -28,11 +32,19 @@ public class SharedPreferencesHelper {
         mEditor.putInt(key, value).apply();
     }
 
+    public void save(String key, long value) {
+        mEditor.putLong(key, value).apply();
+    }
+
     public String getString(String key) {
         return mPreferences.getString(key, null);
     }
 
     public int getInt(String key) {
         return mPreferences.getInt(key, -1);
+    }
+
+    public long getLong(String key) {
+        return mPreferences.getLong(key, -1);
     }
 }

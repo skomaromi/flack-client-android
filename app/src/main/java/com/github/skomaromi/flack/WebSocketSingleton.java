@@ -13,6 +13,7 @@ public class WebSocketSingleton {
     private static WebSocketSingleton mInstance;
 
     private static String mAddress, mToken, mUsernameUnique;
+    private static int mRoomSince, mMessageSince;
     private static WebSocketListener mListener;
     private static WebSocket mSocket;
 
@@ -21,12 +22,14 @@ public class WebSocketSingleton {
 
         String url = String.format(
                 Locale.ENGLISH,
-                "%s://%s:%d/%s/",
+                "%s://%s:%d/%s/%d/%d/",
 
                 PROTO,
                 mAddress,
                 Constants.SERVER_PORT,
-                mToken
+                mToken,
+                mRoomSince,
+                mMessageSince
         );
 
         Request request = new Request.Builder()
@@ -52,10 +55,13 @@ public class WebSocketSingleton {
     }
 
     public static void initialize(String address, String token,
+                                  int room, int message,
                                   String usernameUnique,
                                   WebSocketListener listener) {
         mAddress = address;
         mToken = token;
+        mRoomSince = room;
+        mMessageSince = message;
         mUsernameUnique = usernameUnique;
         mListener = listener;
     }

@@ -21,11 +21,11 @@
         </activity>
         <activity android:name=".AuthActivity" />
         <activity android:name=".ServerInputActivity" />
-        <activity android:name=".RoomsActivity" />
-        <activity android:name=".MessagesActivity" />
+        <activity android:name=".RoomActivity" />
+        <activity android:name=".MessageActivity" />
 
         <service
-            android:name=".WebSocketsService"
+            android:name=".WebSocketService"
             android:enabled="true"
             android:exported="true"></service>
     </application>

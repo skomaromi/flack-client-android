@@ -23,6 +23,7 @@ public class FlackApi {
     private static final String ENDPOINT_LOGIN = "api/auth/login/";
     private static final String ENDPOINT_REGISTER = "api/auth/register/";
     private static final String ENDPOINT_ROOMS = "api/rooms/";
+    private static final String ENDPOINT_MESSAGES = "api/messages/";
 
     private static final int HTTP_OK = 200;
     private static final String PING_EXPECTED_RESPONSE = "flack-pong";
@@ -278,5 +279,94 @@ public class FlackApi {
         }
 
         return roomsJson;
+    }
+
+    public void syncDatabase(Context context) {
+        OkHttpClient client = new OkHttpClient();
+
+        SharedPreferencesHelper prefs = new SharedPreferencesHelper(context);
+
+        int syncRoomId, syncMessageId;
+
+        syncRoomId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_ROOMID);
+        syncMessageId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_MESSAGEID);
+
+        String roomsUrl = String.format(
+                Locale.ENGLISH,
+                "%s://%s:%d/%s",
+
+                PROTO,
+                address,
+                Constants.SERVER_PORT,
+                ENDPOINT_ROOMS
+        );
+        String messagesUrl = String.format(
+                Locale.ENGLISH,
+                "%s://%s:%d/%s",
+
+                PROTO,
+                address,
+                Constants.SERVER_PORT,
+                ENDPOINT_MESSAGES
+        );
+
+        HttpUrl.Builder roomsUrlBuilder, messagesUrlBuilder;
+        roomsUrlBuilder = HttpUrl.parse(roomsUrl).newBuilder();
+        messagesUrlBuilder = HttpUrl.parse(messagesUrl).newBuilder();
+
+        if (syncRoomId != -1) {
+            roomsUrlBuilder.addQueryParameter("room", Integer.toString(syncRoomId));
+            messagesUrlBuilder.addQueryParameter("room", Integer.toString(syncRoomId));
+
+        }
+        else if (syncMessageId != -1) {
+            roomsUrlBuilder.addQueryParameter("message", Integer.toString(syncMessageId));
+            messagesUrlBuilder.addQueryParameter("message", Integer.toString(syncMessageId));
+        }
+        // else assume first start, fetching the whole room and messages list
+
+        roomsUrlBuilder.addQueryParameter("token", token);
+        messagesUrlBuilder.addQueryParameter("token", token);
+
+        String roomsQueryUrl, messagesQueryUrl;
+        roomsQueryUrl = roomsUrlBuilder.build().toString();
+        messagesQueryUrl = messagesUrlBuilder.build().toString();
+
+        Request roomsRequest, messagesRequest;
+        roomsRequest = new Request.Builder()
+                               .url(roomsQueryUrl)
+                               .build();
+        messagesRequest = new Request.Builder()
+                                  .url(messagesQueryUrl)
+                                  .build();
+
+        Response roomsResponse = null,
+                messagesResponse = null;
+
+        String roomsResponseBody, messagesResponseBody;
+
+        try {
+            roomsResponse = client.newCall(roomsRequest).execute();
+            messagesResponse = client.newCall(messagesRequest).execute();
+
+            roomsResponseBody = roomsResponse.body().string();
+            messagesResponseBody = messagesResponse.body().string();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        JSONArray roomsJson, messagesJson;
+
+        try {
+            roomsJson = new JSONArray(roomsResponseBody);
+
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
     }
 }

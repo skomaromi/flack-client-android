@@ -1,31 +1,47 @@
 package com.github.skomaromi.flack;
 
-import java.util.ArrayList;
+import android.support.annotation.NonNull;
 
-class Room {
-    private int id;
+class Room implements Comparable<Room> {
+    private int serverId;
     private String name;
-    private String timeCreated;
-    private String timeLastMessage;
-    private ArrayList<Integer> participants;
+    private long timeCreated;
 
-    public Room() {}
+    // Message-related data
+    private String lastMessageText;
+    private long timeLastMessage;
 
-    public Room(int id, String name, String timeCreated,
-                String timeLastMessage, ArrayList<Integer> participants) {
-        this.id = id;
+    private long timeModified;
+
+    public Room(int serverId, String name, long timeCreated) {
+        this.serverId = serverId;
         this.name = name;
         this.timeCreated = timeCreated;
+        this.lastMessageText = null;
+        this.timeLastMessage = -1;
+        this.timeModified = timeCreated;
+    }
+
+    public Room(int serverId, String name, long timeCreated, String lastMessageText, long timeLastMessage) {
+        this.serverId = serverId;
+        this.name = name;
+        this.timeCreated = timeCreated;
+        this.lastMessageText = lastMessageText;
         this.timeLastMessage = timeLastMessage;
-        this.participants = participants;
+        this.timeModified = timeLastMessage > timeCreated? timeLastMessage : timeCreated;
     }
 
-    public int getId() {
-        return id;
+    @Override
+    public int compareTo(@NonNull Room o) {
+        return Long.compare(this.getTimeModified(), o.getTimeModified());
     }
 
-    public void setId(int id) {
-        this.id = id;
+    public int getServerId() {
+        return serverId;
+    }
+
+    public void setServerId(int serverId) {
+        this.serverId = serverId;
     }
 
     public String getName() {
@@ -36,27 +52,35 @@ class Room {
         this.name = name;
     }
 
-    public String getTimeCreated() {
+    public long getTimeCreated() {
         return timeCreated;
     }
 
-    public void setTimeCreated(String timeCreated) {
+    public void setTimeCreated(long timeCreated) {
         this.timeCreated = timeCreated;
     }
 
-    public String getTimeLastMessage() {
+    public String getLastMessageText() {
+        return lastMessageText;
+    }
+
+    public void setLastMessageText(String lastMessageText) {
+        this.lastMessageText = lastMessageText;
+    }
+
+    public long getTimeLastMessage() {
         return timeLastMessage;
     }
 
-    public void setTimeLastMessage(String timeLastMessage) {
+    public void setTimeLastMessage(long timeLastMessage) {
         this.timeLastMessage = timeLastMessage;
     }
 
-    public ArrayList<Integer> getParticipants() {
-        return participants;
+    public long getTimeModified() {
+        return timeModified;
     }
 
-    public void setParticipants(ArrayList<Integer> participants) {
-        this.participants = participants;
+    public void setTimeModified(long timeModified) {
+        this.timeModified = timeModified;
     }
 }

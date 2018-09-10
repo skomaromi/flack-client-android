@@ -2,10 +2,8 @@ package com.github.skomaromi.flack;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -267,9 +265,9 @@ public class StartActivity extends AppCompatActivity {
     }
 
     private void showRoomsActivity(String address, String token) {
-        Intent roomsActivity = new Intent(this, RoomsActivity.class);
-        roomsActivity.putExtra(RoomsActivity.KEY_ADDRESS, address);
-        roomsActivity.putExtra(RoomsActivity.KEY_AUTHTOKEN, token);
+        Intent roomsActivity = new Intent(this, RoomActivity.class);
+        roomsActivity.putExtra(RoomActivity.KEY_ADDRESS, address);
+        roomsActivity.putExtra(RoomActivity.KEY_AUTHTOKEN, token);
 
         startActivity(roomsActivity);
         finish();

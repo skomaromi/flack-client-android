@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="@dimen/layoutpadding_all">
+
+    <TextView
+        android:id="@+id/message_tv_sender"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="reallyreallyreallyreallyreallyreallylongusername"
+        android:textStyle="bold"
+        android:textColor="@color/colorPrimaryDark"
+        android:layout_marginEnd="8dp"
+        android:layout_toStartOf="@id/message_tv_time"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:id="@+id/message_tv_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="29 Jun at 08:32"
+        android:textSize="10sp"
+        android:layout_alignBaseline="@id/message_tv_sender"
+        android:layout_alignParentEnd="true" />
+
+    <RelativeLayout
+        android:id="@+id/message_rl_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingRight="4dp"
+        android:paddingLeft="4dp"
+        android:background="#eee"
+        android:layout_below="@id/message_tv_sender">
+
+        <ImageView
+            android:id="@+id/message_iv_locationicon"
+            android:layout_width="14dp"
+            android:layout_height="18dp"
+            android:src="@android:drawable/ic_dialog_map"
+            android:layout_marginEnd="4dp"
+            android:tint="#999" />
+
+        <TextView
+            android:id="@+id/message_tv_location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/message_iv_locationicon"
+            android:layout_centerVertical="true"
+            android:text="47.69835°, 50.49825°"
+            android:textStyle="italic"
+            android:textSize="10sp" />
+
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/message_tv_messagecontent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Really really really really really really really really really really really really really really really really really really really really really really really really really really long message."
+        android:layout_below="@id/message_rl_location" />
+
+    <RelativeLayout
+        android:id="@+id/message_rl_file"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:paddingRight="4dp"
+        android:paddingLeft="4dp"
+        android:layout_below="@id/message_tv_messagecontent">
+
+        <ImageView
+            android:id="@+id/message_iv_filedownloadicon"
+            android:layout_width="14dp"
+            android:layout_height="22dp"
+            android:src="@android:drawable/stat_sys_download"
+            android:layout_marginEnd="4dp"
+            android:tint="@color/colorPrimary"
+            android:layout_centerVertical="true" />
+
+        <TextView
+            android:id="@+id/message_tv_filename"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:text="reallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallylongfilename.jpg"
+            android:textColor="@color/colorPrimary"
+            android:layout_toEndOf="@id/message_iv_filedownloadicon"
+            android:layout_centerVertical="true" />
+
+    </RelativeLayout>
+
+</RelativeLayout>
