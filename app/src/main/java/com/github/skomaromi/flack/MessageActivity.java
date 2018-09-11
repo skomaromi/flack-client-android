@@ -2,15 +2,12 @@ package com.github.skomaromi.flack;
 
 import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
-import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -45,22 +42,9 @@ public class MessageActivity extends AppCompatActivity {
     private SqlHelper mSqlHelper;
     private MessageBroadcastReceiver mBroadcastReceiver;
 
-    private ServiceConnection mConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            WebSocketService.LocalBinder binder = (WebSocketService.LocalBinder) service;
-            mService = binder.getService();
-            mService.setCurrentRoom(roomId);
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {}
-    };
-
     private MessageClickCallback mOnFileClickCallback = new MessageClickCallback() {
         @Override
         public void onClick(Message message) {
-            // TODO: do something here, like downloading.
             MessageFile file = message.getFile();
             BackgroundDownloadTask t = new BackgroundDownloadTask(
                     file.getHash(),
@@ -73,7 +57,6 @@ public class MessageActivity extends AppCompatActivity {
     private MessageClickCallback mOnLocationClickCallback = new MessageClickCallback() {
         @Override
         public void onClick(Message message) {
-            // TODO: do something here, like opening Maps.
             Location location = message.getLocation();
             Uri intentUri = Uri.parse(
                     String.format(
@@ -255,22 +238,22 @@ public class MessageActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        bindWebSocketsService();
+        FlackApplication.setCurrentRoom(roomId);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (mService != null) {
+        FlackApplication.setCurrentRoom(FlackApplication.NO_ACTIVITY_VISIBLE);
+        /*if (mService != null) {
             mService.setCurrentRoom(WebSocketService.CR_NONE);
-        }
+        }*/
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         unregisterReceiver(mBroadcastReceiver);
-        unbindService(mConnection);
     }
 
     @Override
@@ -341,10 +324,5 @@ public class MessageActivity extends AppCompatActivity {
     private void startWebSocketsService() {
         Intent webSocketsService = new Intent(this, WebSocketService.class);
         startService(webSocketsService);
-    }
-
-    private void bindWebSocketsService() {
-        Intent webSocketsService = new Intent(this, WebSocketService.class);
-        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
     }
 }

@@ -4,11 +4,14 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
+
+import com.rabtman.wsmanager.listener.WsStatusListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -17,12 +20,8 @@ import org.json.JSONObject;
 import java.util.Random;
 
 import okhttp3.Response;
-import okhttp3.WebSocket;
-import okhttp3.WebSocketListener;
 
 public class WebSocketService extends Service {
-    public static final int CR_NONE = -1;
-    public static final int CR_ROOM_LIST = -2;
     public static final int TYPE_ROOM = 1;
     public static final int TYPE_MESSAGE = 2;
     public static final int TYPE_MESSAGELITE = 3;
@@ -48,31 +47,29 @@ public class WebSocketService extends Service {
     public static final String KEY_MESSAGELITE_TEXT = "text";
     public static final String KEY_MESSAGELITE_TIMECREATED = "time_created";
 
-    private final IBinder mBinder = new LocalBinder();
     private SharedPreferencesHelper prefs;
-    private FlackWebSocketListener listener;
+    private FlackWsStatusListener listener;
     private SqlHelper sqlHelper;
     private String usernameUnique;
-    private boolean alreadyStarted, bound;
-    private int currentRoom;
+    private boolean alreadyStarted;
 
-    private class FlackWebSocketListener extends WebSocketListener {
+    private class FlackWsStatusListener extends WsStatusListener {
         private int userId;
 
-        public FlackWebSocketListener() {
+        public FlackWsStatusListener() {
             userId = prefs.getInt(SharedPreferencesHelper.KEY_USERID);
             Log.d(Constants.APP_NAME, String.format("FWSL: userId: %d", userId));
         }
 
         @Override
-        public void onOpen(WebSocket webSocket, Response response) {
-            super.onOpen(webSocket, response);
+        public void onOpen(Response response) {
+            super.onOpen(response);
             Log.d(Constants.APP_NAME, "FWSL: websocket open!");
         }
 
         @Override
-        public void onFailure(WebSocket webSocket, Throwable t, @Nullable Response response) {
-            super.onFailure(webSocket, t, response);
+        public void onFailure(Throwable t, Response response) {
+            super.onFailure(t, response);
             if (t != null) {
                 t.printStackTrace();
             }
@@ -80,14 +77,15 @@ public class WebSocketService extends Service {
         }
 
         @Override
-        public void onClosed(WebSocket webSocket, int code, String reason) {
-            super.onClosed(webSocket, code, reason);
+        public void onClosed(int code, String reason) {
+            super.onClosed(code, reason);
             Log.d(Constants.APP_NAME, "FWSL: websocket disconnected!");
         }
 
+
         @Override
-        public void onMessage(WebSocket webSocket, String text) {
-            Log.d(Constants.APP_NAME, "FlackWebSocketListener: okay, we got " +
+        public void onMessage(String text) {
+            Log.d(Constants.APP_NAME, "FlackWsStatusListener: okay, we got " +
                                               "something");
             Log.d(Constants.APP_NAME, String.format("FWSL: <msg>%s</msg>", text));
 
@@ -151,7 +149,8 @@ public class WebSocketService extends Service {
                     int senderId = attr.getInt("sender_id");
                     String senderUnique = attr.getString("sender_unique");
 
-                    boolean onRoomList = currentRoom == CR_ROOM_LIST;
+                    boolean onRoomList = FlackApplication.checkIsOnRoomList();
+                    int currentRoom = FlackApplication.getCurrentRoom();
 
                     String notificationObjectType = attr.getString("object");
 
@@ -164,15 +163,19 @@ public class WebSocketService extends Service {
                         long created = attr.getLong("time");
 
                         if (jsonArrayContains(participantsJson, userId)) {
-                            boolean differentUser = senderId != userId;
                             boolean isFromAnyOtherDevice = !senderUnique.equals(usernameUnique);
+                            boolean differentUser = senderId != userId;
 
-                            boolean shouldDoSyncBroadcastDb = isFromAnyOtherDevice;
-                            boolean shouldSendNotification = differentUser && !onRoomList;
+                            boolean roomAlreadyReceived = true;
+                            if (isFromAnyOtherDevice) {
+                                roomAlreadyReceived = !sqlHelper.addRoom(id, name, created);
+                            }
 
-                            if (shouldDoSyncBroadcastDb) {
+                            boolean shouldDoSyncBroadcast = !roomAlreadyReceived;
+                            boolean shouldSendNotification = !roomAlreadyReceived && differentUser && !onRoomList;
+
+                            if (shouldDoSyncBroadcast) {
                                 updateRoomSyncData(id, created);
-                                sqlHelper.addRoom(id, name, created);
                                 sendRoomBroadcast(id, name, created);
                             }
 
@@ -185,6 +188,7 @@ public class WebSocketService extends Service {
                         JSONArray participantsJson = attr.getJSONArray("room_participants");
 
                         // db data
+                        int messageId = attr.getInt("message_id");
                         int roomId = attr.getInt("room");
                         String content = attr.getString("content");
                         long timeCreated = attr.getLong("time");
@@ -210,9 +214,6 @@ public class WebSocketService extends Service {
 
                         Message message = new Message(sender, content, timeCreated, location, file);
 
-                        // sync data
-                        int messageId = attr.getInt("message_id");
-
                         // notif data
                         String roomName = attr.getString("room_name");
 
@@ -221,12 +222,16 @@ public class WebSocketService extends Service {
                             boolean differentUser = senderId != userId;
                             boolean onMessageRoom = roomId == currentRoom;
 
-                            boolean shouldDoSyncBroadcastDb = isFromAnyOtherDevice;
-                            boolean shouldSendMessageNotification = differentUser && (!onMessageRoom && !onRoomList);
+                            boolean messageAlreadyReceived = true;
+                            if (isFromAnyOtherDevice) {
+                                messageAlreadyReceived = !sqlHelper.addMessage(messageId, roomId, message);
+                            }
 
-                            if (shouldDoSyncBroadcastDb) {
+                            boolean shouldDoSyncBroadcast = !messageAlreadyReceived;
+                            boolean shouldSendMessageNotification = !messageAlreadyReceived && differentUser && !onMessageRoom && !onRoomList;
+
+                            if (shouldDoSyncBroadcast) {
                                 updateMessageSyncData(messageId, timeCreated);
-                                sqlHelper.addMessage(roomId, message);
                                 sendMessageBroadcast(
                                         roomId,
                                         sender,
@@ -259,12 +264,6 @@ public class WebSocketService extends Service {
         }
     }
 
-    public class LocalBinder extends Binder {
-        WebSocketService getService() {
-            return WebSocketService.this;
-        }
-    }
-
     @Override
     public void onCreate() {
         super.onCreate();
@@ -272,8 +271,6 @@ public class WebSocketService extends Service {
         Log.d(Constants.APP_NAME, "WebSocketService onCreate");
 
         alreadyStarted = false;
-        bound = false;
-        currentRoom = CR_NONE;
     }
 
     @Override
@@ -292,9 +289,9 @@ public class WebSocketService extends Service {
 
             sqlHelper = new SqlHelper(this);
 
-            listener = new FlackWebSocketListener();
+            listener = new FlackWsStatusListener();
 
-            if (!WebSocketSingleton.create()) {
+            if (!WebSocketSingleton.create(this)) {
                 int roomId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_ROOMID);
                 long roomTime = prefs.getLong(SharedPreferencesHelper.KEY_SYNC_ROOMTIME);
 
@@ -318,7 +315,7 @@ public class WebSocketService extends Service {
                         usernameUnique,
                         listener
                 );
-                WebSocketSingleton.create();
+                WebSocketSingleton.create(this);
             }
         }
         alreadyStarted = true;
@@ -326,19 +323,10 @@ public class WebSocketService extends Service {
         return Service.START_STICKY;
     }
 
+    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        bound = true;
-        return mBinder;
-    }
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        bound = false;
-        currentRoom = CR_NONE;
-
-        // will return false, causing the currently unimplemented onRebind method not to be fired
-        return super.onUnbind(intent);
+        return null;
     }
 
     private void sendRoomNotification(int roomId, String roomName, String creator) {
@@ -473,9 +461,5 @@ public class WebSocketService extends Service {
             }
         }
         return false;
-    }
-
-    public void setCurrentRoom(int roomId) {
-        currentRoom = roomId;
     }
 }

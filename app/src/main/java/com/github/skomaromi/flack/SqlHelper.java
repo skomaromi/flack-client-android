@@ -25,6 +25,7 @@ class SqlHelper extends SQLiteOpenHelper {
 
     private class MessageEntry implements BaseColumns {
         public static final String TABLE = "messages";
+        public static final String COL_SERVERID = "server_id";
         public static final String COL_ROOM_SERVERID = "room_server_id";
         public static final String COL_SENDERNAME = "sender_name";
         public static final String COL_CONTENT = "content";
@@ -52,10 +53,12 @@ class SqlHelper extends SQLiteOpenHelper {
                 RoomEntry.COL_TIMECREATED +     " BIGINT NOT NULL, " +
                 RoomEntry.COL_LASTMESSAGETEXT + " TEXT, " +
                 RoomEntry.COL_TIMELASTMESSAGE + " BIGINT, " +
-                RoomEntry.COL_TIMEMODIFIED +    " BIGINT NOT NULL" +
+                RoomEntry.COL_TIMEMODIFIED +    " BIGINT NOT NULL, " +
+                "UNIQUE(" + RoomEntry.COL_SERVERID + ")" +
         ");";
         String createMessageTableQuery = "CREATE TABLE " + MessageEntry.TABLE + " (" +
                 MessageEntry._ID +                    " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                MessageEntry.COL_SERVERID +           " INTEGER NOT NULL, " +
                 MessageEntry.COL_ROOM_SERVERID +      " INTEGER NOT NULL, " +
                 MessageEntry.COL_SENDERNAME +         " TEXT NOT NULL, " +
                 MessageEntry.COL_CONTENT +            " TEXT, " +
@@ -63,7 +66,8 @@ class SqlHelper extends SQLiteOpenHelper {
                 MessageEntry.COL_LOCATION_LATITUDE +  " REAL, " +
                 MessageEntry.COL_LOCATION_LONGITUDE + " REAL, " +
                 MessageEntry.COL_FILE_HASH +          " VARCHAR(128), " +
-                MessageEntry.COL_FILE_NAME +          " VARCHAR(255)" +
+                MessageEntry.COL_FILE_NAME +          " VARCHAR(255), " +
+                "UNIQUE(" + MessageEntry.COL_SERVERID + ")" +
         ");";
 
         db.execSQL(createRoomTableQuery);
@@ -102,7 +106,7 @@ class SqlHelper extends SQLiteOpenHelper {
 
         MessageFile file = null;
         if (!cursor.isNull(cursor.getColumnIndex(MessageEntry.COL_FILE_HASH))) {
-            // TODO: see if isNull is enough.
+            // TODO: see if using isNull is good enough
             String hash = cursor.getString(cursor.getColumnIndex(MessageEntry.COL_FILE_HASH));
             String name = cursor.getString(cursor.getColumnIndex(MessageEntry.COL_FILE_NAME));
 
@@ -204,13 +208,14 @@ class SqlHelper extends SQLiteOpenHelper {
         return id != -1;
     }
 
-    public boolean addMessage(int roomId, Message message) {
+    public boolean addMessage(int serverId, int roomId, Message message) {
         long id;
         SQLiteDatabase database = getWritableDatabase();
 
         if (database != null && database.isOpen()) {
             ContentValues values = new ContentValues();
 
+            values.put(MessageEntry.COL_SERVERID, serverId);
             values.put(MessageEntry.COL_ROOM_SERVERID, roomId);
 
             String sender = message.getSender();
@@ -236,16 +241,18 @@ class SqlHelper extends SQLiteOpenHelper {
 
             id = database.insert(MessageEntry.TABLE, null, values);
 
-            // update Room as well
-            String roomLastMessageContent = message.toString();
-            roomLastMessageContent = DatabaseUtils.sqlEscapeString(roomLastMessageContent);
-            String roomUpdateQuery =
-                    "UPDATE " + RoomEntry.TABLE + " " +
-                    "SET " + RoomEntry.COL_LASTMESSAGETEXT + " = CASE WHEN " + RoomEntry.COL_TIMEMODIFIED + " < " + timeCreated + " THEN " + roomLastMessageContent + " ELSE " + RoomEntry.COL_LASTMESSAGETEXT + " END, " +
-                             RoomEntry.COL_TIMELASTMESSAGE + " = CASE WHEN " + RoomEntry.COL_TIMEMODIFIED + " < " + timeCreated + " THEN " + timeCreated +            " ELSE " + RoomEntry.COL_TIMELASTMESSAGE + " END, " +
-                             RoomEntry.COL_TIMEMODIFIED +    " = CASE WHEN " + RoomEntry.COL_TIMEMODIFIED + " < " + timeCreated + " THEN " + timeCreated +            " ELSE " + RoomEntry.COL_TIMEMODIFIED +    " END " +
-                    "WHERE " + RoomEntry.COL_SERVERID + " = " + roomId;
-            database.execSQL(roomUpdateQuery);
+            if (id != -1) {
+                // update Room as well
+                String roomLastMessageContent = message.toString();
+                roomLastMessageContent = DatabaseUtils.sqlEscapeString(roomLastMessageContent);
+                String roomUpdateQuery =
+                        "UPDATE " + RoomEntry.TABLE + " " +
+                                "SET " + RoomEntry.COL_LASTMESSAGETEXT + " = CASE WHEN " + RoomEntry.COL_TIMEMODIFIED + " < " + timeCreated + " THEN " + roomLastMessageContent + " ELSE " + RoomEntry.COL_LASTMESSAGETEXT + " END, " +
+                                RoomEntry.COL_TIMELASTMESSAGE + " = CASE WHEN " + RoomEntry.COL_TIMEMODIFIED + " < " + timeCreated + " THEN " + timeCreated + " ELSE " + RoomEntry.COL_TIMELASTMESSAGE + " END, " +
+                                RoomEntry.COL_TIMEMODIFIED + " = CASE WHEN " + RoomEntry.COL_TIMEMODIFIED + " < " + timeCreated + " THEN " + timeCreated + " ELSE " + RoomEntry.COL_TIMEMODIFIED + " END " +
+                                "WHERE " + RoomEntry.COL_SERVERID + " = " + roomId;
+                database.execSQL(roomUpdateQuery);
+            }
 
             database.close();
         }

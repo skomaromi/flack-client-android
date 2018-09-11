@@ -299,7 +299,6 @@ public class StartActivity extends AppCompatActivity {
         }
         else if (requestCode == Constants.REQCODE_ACTIVITY_AUTH) {
             if (resultCode == Activity.RESULT_OK) {
-                // TODO: show rooms activity, send ip and authtoken
                 Log.d(Constants.APP_NAME, "AuthActivity returned RESULT_OK");
 
                 String token = data.getStringExtra(AuthActivity.KEY_AUTHTOKEN);

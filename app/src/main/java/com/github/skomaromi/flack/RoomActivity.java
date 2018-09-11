@@ -35,21 +35,8 @@ public class RoomActivity extends AppCompatActivity {
 
     private ArrayList<Room> mRoomArrayList;
     private RoomAdapter mAdapter;
-    private WebSocketService mService;
     private SqlHelper mSqlHelper;
     private RoomBroadcastReceiver mBroadcastReceiver;
-
-    private ServiceConnection mConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            WebSocketService.LocalBinder binder = (WebSocketService.LocalBinder) service;
-            mService = binder.getService();
-            mService.setCurrentRoom(WebSocketService.CR_ROOM_LIST);
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {}
-    };
 
     private RoomClickCallback mOnRoomClickCallback = new RoomClickCallback() {
         @Override
@@ -103,22 +90,19 @@ public class RoomActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        bindWebSocketsService();
+        FlackApplication.setCurrentRoom(FlackApplication.ON_ROOM_LIST);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (mService != null) {
-            mService.setCurrentRoom(WebSocketService.CR_NONE);
-        }
+        FlackApplication.setCurrentRoom(FlackApplication.NO_ACTIVITY_VISIBLE);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         unregisterReceiver(mBroadcastReceiver);
-        unbindService(mConnection);
     }
 
     private void setUpBroadcastReceiver() {
@@ -193,10 +177,5 @@ public class RoomActivity extends AppCompatActivity {
     private void startWebSocketsService() {
         Intent webSocketsService = new Intent(this, WebSocketService.class);
         startService(webSocketsService);
-    }
-
-    private void bindWebSocketsService() {
-        Intent webSocketsService = new Intent(this, WebSocketService.class);
-        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
     }
 }
