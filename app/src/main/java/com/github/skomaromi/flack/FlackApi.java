@@ -7,6 +7,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Locale;
 
 import okhttp3.FormBody;
@@ -22,12 +23,19 @@ public class FlackApi {
     private static final String ENDPOINT_REGISTER = "api/auth/register/";
     private static final String ENDPOINT_ROOMS = "api/rooms/";
     private static final String ENDPOINT_MESSAGES = "api/messages/";
+    private static final String ENDPOINT_FILES = "api/files/";
 
     private static final int HTTP_OK = 200;
     private static final String PING_EXPECTED_RESPONSE = "flack-pong";
 
     private String address;
     private String token;
+
+    public FlackApi(Context context) {
+        SharedPreferencesHelper prefs = new SharedPreferencesHelper(context);
+        address = prefs.getString(SharedPreferencesHelper.KEY_SERVERADDR);
+        token = prefs.getString(SharedPreferencesHelper.KEY_AUTHTOKEN);
+    }
 
     public FlackApi(String address) {
         this.address = address;
@@ -55,7 +63,7 @@ public class FlackApi {
                                   .url(url)
                                   .build();
 
-        Response response = null;
+        Response response;
         try {
             response = client.newCall(request).execute();
         }
@@ -113,7 +121,7 @@ public class FlackApi {
                                   .url(url)
                                   .build();
 
-        Response response = null;
+        Response response;
         try {
             response = client.newCall(request).execute();
         } catch (IOException e) {
@@ -183,8 +191,7 @@ public class FlackApi {
                                   .url(url)
                                   .build();
 
-        Response response = null;
-
+        Response response;
         try {
             response = client.newCall(request).execute();
         } catch (IOException e) {
@@ -228,143 +235,59 @@ public class FlackApi {
         return token;
     }
 
-    public JSONArray getRoomsJson() {
+    public ArrayList<File> getFiles() {
+        ArrayList<File> files = new ArrayList<>();
+
         OkHttpClient client = new OkHttpClient();
 
-        String url = String.format(
-                Locale.ENGLISH,
-                "%s://%s:%d/%s",
-
-                Constants.SERVER_PROTO,
-                address,
-                Constants.SERVER_PORT,
-                ENDPOINT_ROOMS
-        );
-
-        HttpUrl.Builder urlBuilder = HttpUrl.parse(url).newBuilder();
-        urlBuilder.addQueryParameter("token", token);
-        String queryUrl = urlBuilder.build().toString();
+        HttpUrl queryUrl = new HttpUrl.Builder()
+                                   .scheme(Constants.SERVER_PROTO)
+                                   .host(address)
+                                   .port(Constants.SERVER_PORT)
+                                   .addPathSegment(ENDPOINT_FILES)
+                                   .addQueryParameter("token", token)
+                                   .build();
 
         Request request = new Request.Builder()
+                                  .get()
                                   .url(queryUrl)
                                   .build();
 
-        Response response = null;
-
-        try {
-            response = client.newCall(request).execute();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-
+        Response response;
         String responseBody;
         try {
+            response = client.newCall(request).execute();
             responseBody = response.body().string();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
-            return null;
+            return files;
         }
 
-        JSONArray roomsJson;
         try {
-            roomsJson = new JSONArray(responseBody);
+            JSONArray fileJsons = new JSONArray(responseBody);
+
+            for (int i = 0; i < fileJsons.length(); i++) {
+                JSONObject fileJson = fileJsons.getJSONObject(i);
+
+                int serverId = fileJson.getInt("id");
+                String hash = fileJson.getString("hash");
+                String name = fileJson.getString("name");
+                String sizeStr = fileJson.getString("size");
+
+                File file = new File(
+                        serverId,
+                        hash,
+                        name,
+                        sizeStr
+                );
+                files.add(file);
+            }
         }
         catch (JSONException e) {
             e.printStackTrace();
-            return null;
+            return files;
         }
 
-        return roomsJson;
-    }
-
-    public void syncDatabase(Context context) {
-        OkHttpClient client = new OkHttpClient();
-
-        SharedPreferencesHelper prefs = new SharedPreferencesHelper(context);
-
-        int syncRoomId, syncMessageId;
-
-        syncRoomId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_ROOMID);
-        syncMessageId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_MESSAGEID);
-
-        String roomsUrl = String.format(
-                Locale.ENGLISH,
-                "%s://%s:%d/%s",
-
-                Constants.SERVER_PROTO,
-                address,
-                Constants.SERVER_PORT,
-                ENDPOINT_ROOMS
-        );
-        String messagesUrl = String.format(
-                Locale.ENGLISH,
-                "%s://%s:%d/%s",
-
-                Constants.SERVER_PROTO,
-                address,
-                Constants.SERVER_PORT,
-                ENDPOINT_MESSAGES
-        );
-
-        HttpUrl.Builder roomsUrlBuilder, messagesUrlBuilder;
-        roomsUrlBuilder = HttpUrl.parse(roomsUrl).newBuilder();
-        messagesUrlBuilder = HttpUrl.parse(messagesUrl).newBuilder();
-
-        if (syncRoomId != -1) {
-            roomsUrlBuilder.addQueryParameter("room", Integer.toString(syncRoomId));
-            messagesUrlBuilder.addQueryParameter("room", Integer.toString(syncRoomId));
-
-        }
-        else if (syncMessageId != -1) {
-            roomsUrlBuilder.addQueryParameter("message", Integer.toString(syncMessageId));
-            messagesUrlBuilder.addQueryParameter("message", Integer.toString(syncMessageId));
-        }
-        // else assume first start, fetching the whole room and messages list
-
-        roomsUrlBuilder.addQueryParameter("token", token);
-        messagesUrlBuilder.addQueryParameter("token", token);
-
-        String roomsQueryUrl, messagesQueryUrl;
-        roomsQueryUrl = roomsUrlBuilder.build().toString();
-        messagesQueryUrl = messagesUrlBuilder.build().toString();
-
-        Request roomsRequest, messagesRequest;
-        roomsRequest = new Request.Builder()
-                               .url(roomsQueryUrl)
-                               .build();
-        messagesRequest = new Request.Builder()
-                                  .url(messagesQueryUrl)
-                                  .build();
-
-        Response roomsResponse = null,
-                messagesResponse = null;
-
-        String roomsResponseBody, messagesResponseBody;
-
-        try {
-            roomsResponse = client.newCall(roomsRequest).execute();
-            messagesResponse = client.newCall(messagesRequest).execute();
-
-            roomsResponseBody = roomsResponse.body().string();
-            messagesResponseBody = messagesResponse.body().string();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
-
-        JSONArray roomsJson, messagesJson;
-
-        try {
-            roomsJson = new JSONArray(roomsResponseBody);
-
-        }
-        catch (JSONException e) {
-            e.printStackTrace();
-            return;
-        }
-
+        return files;
     }
 }

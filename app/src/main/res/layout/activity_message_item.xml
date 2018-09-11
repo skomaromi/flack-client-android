@@ -40,7 +40,7 @@
             android:id="@+id/message_iv_locationicon"
             android:layout_width="14dp"
             android:layout_height="18dp"
-            android:src="@android:drawable/ic_dialog_map"
+            android:src="@drawable/icon_pin"
             android:layout_marginEnd="4dp"
             android:tint="#999" />
 
@@ -76,8 +76,9 @@
         <ImageView
             android:id="@+id/message_iv_filedownloadicon"
             android:layout_width="14dp"
-            android:layout_height="22dp"
-            android:src="@android:drawable/stat_sys_download"
+            android:layout_height="17dp"
+            android:src="@drawable/icon_download"
+            android:scaleType="fitCenter"
             android:layout_marginEnd="4dp"
             android:tint="@color/colorPrimary"
             android:layout_centerVertical="true" />

@@ -245,9 +245,6 @@ public class MessageActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         FlackApplication.setCurrentRoom(FlackApplication.NO_ACTIVITY_VISIBLE);
-        /*if (mService != null) {
-            mService.setCurrentRoom(WebSocketService.CR_NONE);
-        }*/
     }
 
     @Override
@@ -318,6 +315,7 @@ public class MessageActivity extends AppCompatActivity {
         }
         else {
             noMessagesText.setVisibility(View.GONE);
+            recyclerView.scrollToPosition(mMessageArrayList.size() - 1);
         }
     }
 

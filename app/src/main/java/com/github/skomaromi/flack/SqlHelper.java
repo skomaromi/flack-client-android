@@ -40,6 +40,14 @@ class SqlHelper extends SQLiteOpenHelper {
         public static final String COL_FILE_NAME = "file_name";
     }
 
+    private class FileEntry implements BaseColumns {
+        public static final String TABLE = "files";
+        public static final String COL_SERVERID = "server_id";
+        public static final String COL_HASH = "hash";
+        public static final String COL_NAME = "name";
+        public static final String COL_SIZESTR = "size_str";
+    }
+
     public SqlHelper(Context context) {
         super(context, Constants.DB_NAME, null, Constants.DB_VERSION);
     }
@@ -69,15 +77,25 @@ class SqlHelper extends SQLiteOpenHelper {
                 MessageEntry.COL_FILE_NAME +          " VARCHAR(255), " +
                 "UNIQUE(" + MessageEntry.COL_SERVERID + ")" +
         ");";
+        String createFileTableQuery = "CREATE TABLE " + FileEntry.TABLE + " (" +
+                FileEntry._ID +          " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                FileEntry.COL_SERVERID + " INTEGER NOT NULL, " +
+                FileEntry.COL_HASH +     " VARCHAR(128), " +
+                FileEntry.COL_NAME +     " VARCHAR(255), " +
+                FileEntry.COL_SIZESTR +  " VARCHAR(255), " +
+                "UNIQUE(" + FileEntry.COL_SERVERID + ")" +
+        ");";
 
         db.execSQL(createRoomTableQuery);
         db.execSQL(createMessageTableQuery);
+        db.execSQL(createFileTableQuery);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + RoomEntry.TABLE);
         db.execSQL("DROP TABLE IF EXISTS " + MessageEntry.TABLE);
+        db.execSQL("DROP TABLE IF EXISTS " + FileEntry.TABLE);
         onCreate(db);
     }
 
@@ -87,7 +105,7 @@ class SqlHelper extends SQLiteOpenHelper {
                 cursor.getString(cursor.getColumnIndex(RoomEntry.COL_NAME)),
                 cursor.getLong(cursor.getColumnIndex(RoomEntry.COL_TIMECREATED)),
                 cursor.getString(cursor.getColumnIndex(RoomEntry.COL_LASTMESSAGETEXT)),
-                cursor.getLong(cursor.getColumnIndex(RoomEntry.COL_TIMELASTMESSAGE))
+                cursor.getLong(cursor.getColumnIndex(RoomEntry.COL_TIMEMODIFIED))
         );
     }
 
@@ -119,6 +137,15 @@ class SqlHelper extends SQLiteOpenHelper {
                 timeCreated,
                 location,
                 file
+        );
+    }
+
+    private File makeFile(Cursor cursor) {
+        return new File(
+                cursor.getInt(cursor.getColumnIndex(FileEntry.COL_SERVERID)),
+                cursor.getString(cursor.getColumnIndex(FileEntry.COL_HASH)),
+                cursor.getString(cursor.getColumnIndex(FileEntry.COL_NAME)),
+                cursor.getString(cursor.getColumnIndex(FileEntry.COL_SIZESTR))
         );
     }
 
@@ -188,6 +215,31 @@ class SqlHelper extends SQLiteOpenHelper {
         return messages;
     }
 
+    public ArrayList<File> getFiles() {
+        ArrayList<File> files = new ArrayList<>();
+        SQLiteDatabase database = getReadableDatabase();
+
+        if (database != null && database.isOpen()) {
+            String query = String.format(
+                    "SELECT * FROM %s ORDER BY %s ASC",
+                    FileEntry.TABLE,
+                    FileEntry.COL_NAME
+            );
+            Cursor cursor = database.rawQuery(query, null);
+            if (cursor != null) {
+                cursor.moveToFirst();
+                while (!cursor.isAfterLast()) {
+                    files.add(makeFile(cursor));
+                    cursor.moveToNext();
+                }
+            }
+
+            database.close();
+        }
+
+        return files;
+    }
+
     public boolean addRoom(int serverId, String name, long timeCreated) {
         long id;
         SQLiteDatabase database = getWritableDatabase();
@@ -253,6 +305,46 @@ class SqlHelper extends SQLiteOpenHelper {
                                 "WHERE " + RoomEntry.COL_SERVERID + " = " + roomId;
                 database.execSQL(roomUpdateQuery);
             }
+
+            database.close();
+        }
+        else return false;
+
+        return id != -1;
+    }
+
+    public void addFiles(ArrayList<File> files) {
+        SQLiteDatabase database = getWritableDatabase();
+
+        if (database != null && database.isOpen()) {
+            for (int i = 0; i < files.size(); i++) {
+                File file = files.get(i);
+
+                ContentValues values = new ContentValues();
+                values.put(FileEntry.COL_SERVERID, file.getServerId());
+                values.put(FileEntry.COL_HASH, file.getHash());
+                values.put(FileEntry.COL_NAME, file.getName());
+                values.put(FileEntry.COL_SIZESTR, file.getSizeStr());
+
+                database.insert(FileEntry.TABLE, null, values);
+            }
+
+            database.close();
+        }
+    }
+
+    public boolean addFile(int serverId, String hash, String name, String sizeStr) {
+        long id;
+        SQLiteDatabase database = getWritableDatabase();
+
+        if (database != null && database.isOpen()) {
+            ContentValues values = new ContentValues();
+            values.put(FileEntry.COL_SERVERID, serverId);
+            values.put(FileEntry.COL_HASH, hash);
+            values.put(FileEntry.COL_NAME, name);
+            values.put(FileEntry.COL_SIZESTR, sizeStr);
+
+            id = database.insert(FileEntry.TABLE, null, values);
 
             database.close();
         }

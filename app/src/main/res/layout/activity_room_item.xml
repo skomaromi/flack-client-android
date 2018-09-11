@@ -3,10 +3,11 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="@dimen/layoutpadding_all">
+    android:padding="@dimen/layoutpadding_all"
+    android:background="?android:attr/selectableItemBackground">
 
     <TextView
-        android:id="@+id/rooms_tv_roomname"
+        android:id="@+id/room_tv_roomname"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:ellipsize="end"
@@ -15,24 +16,24 @@
         android:textColor="#000"
         android:textSize="18sp"
         android:layout_marginEnd="8dp"
-        android:layout_toStartOf="@id/rooms_tv_lastmodified"
+        android:layout_toStartOf="@id/room_tv_lastmodified"
         android:layout_alignParentStart="true"/>
 
     <TextView
-        android:id="@+id/rooms_tv_lastmodified"
+        android:id="@+id/room_tv_lastmodified"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="14sp"
         android:text="29 Jun"
-        android:layout_alignBaseline="@id/rooms_tv_roomname"
+        android:layout_alignBaseline="@id/room_tv_roomname"
         android:layout_alignParentEnd="true"/>
 
     <TextView
-        android:id="@+id/rooms_tv_lastmessage"
+        android:id="@+id/room_tv_lastmessage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="14sp"
         android:text="Placeholder last message content"
-        android:layout_below="@id/rooms_tv_roomname"/>
+        android:layout_below="@id/room_tv_roomname"/>
 
 </RelativeLayout>

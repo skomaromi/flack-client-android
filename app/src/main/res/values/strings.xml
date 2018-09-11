@@ -23,4 +23,7 @@
     <!-- MessageActivity -->
     <string name="text_message_tv_nomessages">No messages here yet. Be the first one to send something!</string>
 
+    <!-- FileActivity -->
+    <string name="title_file_activitylabel">Files</string>
+    <string name="text_file_tv_nofiles">No uploaded files so far. Try reloading if you uploaded files from another device.</string>
 </resources>

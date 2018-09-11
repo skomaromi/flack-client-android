@@ -1,5 +1,6 @@
 package com.github.skomaromi.flack;
 
+import android.graphics.Typeface;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -43,20 +44,25 @@ class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull RoomViewHolder holder, int position) {
         Room room = mRooms.get(position);
+
         String name = room.getName();
+        holder.name.setText(name);
 
         long time = room.getTimeModified();
-
         DateFormat format = new SimpleDateFormat("d MMM");
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(time);
         String timeStr = format.format(calendar.getTime());
+        holder.time.setText(timeStr);
 
         String message = room.getLastMessageText();
-        message = message == null? "(no messages yet)" : message;
-
-        holder.name.setText(name);
-        holder.time.setText(timeStr);
+        if (message == null) {
+            message = "(no messages yet)";
+            holder.message.setTypeface(null, Typeface.ITALIC);
+        }
+        else {
+            holder.message.setTypeface(null, Typeface.NORMAL);
+        }
         holder.message.setText(message);
     }
 
@@ -66,9 +72,9 @@ class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder> {
     }
 
     public class RoomViewHolder extends RecyclerView.ViewHolder {
-        @BindView(R.id.rooms_tv_roomname) TextView name;
-        @BindView(R.id.rooms_tv_lastmodified) TextView time;
-        @BindView(R.id.rooms_tv_lastmessage) TextView message;
+        @BindView(R.id.room_tv_roomname) TextView name;
+        @BindView(R.id.room_tv_lastmodified) TextView time;
+        @BindView(R.id.room_tv_lastmessage) TextView message;
 
         public RoomViewHolder(View itemView) {
             super(itemView);

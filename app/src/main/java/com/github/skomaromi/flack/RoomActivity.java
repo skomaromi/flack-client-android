@@ -1,16 +1,16 @@
 package com.github.skomaromi.flack;
 
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
-import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 
@@ -105,6 +105,23 @@ public class RoomActivity extends AppCompatActivity {
         unregisterReceiver(mBroadcastReceiver);
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.activity_room_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.room_mi_files:
+                startFileActivity();
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     private void setUpBroadcastReceiver() {
         mBroadcastReceiver = new RoomBroadcastReceiver();
 
@@ -124,6 +141,11 @@ public class RoomActivity extends AppCompatActivity {
                 token = data.getStringExtra(KEY_AUTHTOKEN);
             }
         }
+    }
+
+    private void startFileActivity() {
+        Intent fileActivity = new Intent(this, FileActivity.class);
+        startActivity(fileActivity);
     }
 
     private void setUpRecyclerView() {
