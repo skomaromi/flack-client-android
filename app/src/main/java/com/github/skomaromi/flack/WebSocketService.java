@@ -47,6 +47,7 @@ public class WebSocketService extends Service {
     public static final String KEY_MESSAGELITE_TEXT = "text";
     public static final String KEY_MESSAGELITE_TIMECREATED = "time_created";
 
+    private final IBinder mBinder = new WebSocketBinder();
     private SharedPreferencesHelper prefs;
     private FlackWsStatusListener listener;
     private SqlHelper sqlHelper;
@@ -89,47 +90,42 @@ public class WebSocketService extends Service {
                                               "something");
             Log.d(Constants.APP_NAME, String.format("FWSL: <msg>%s</msg>", text));
 
-            // irrelevant room example
-            // {
-            //    "type":"notification",
-            //    "attr":{
-            //       "object":"room",
-            //       "name":"ROOM TEST 3",
-            //       "id":25,
-            //       "sender":"admin",
-            //       "sender_unique":"admin_mcs9",
-            //       "participants":[
-            //          1,
-            //          10,
-            //          9
-            //       ]
-            //    }
-            // }
-
-            // irrelevant message example
-            // {
-            //    "type":"notification",
-            //    "attr":{
-            //       "object":"message",
-            //       "content":"dqwdwqqwdqwdwqdwdwqddw",
-            //       "file":null,
-            //       "room":25,
-            //       "room_participants":[
-            //          1,
-            //          9,
-            //          10
-            //       ],
-            //       "sender":"admin",
-            //       "sender_unique":"admin_mcs9",
-            //       "location":null,
-            //       "message_id":112,
-            //       "time":"2018-09-06 20:11:03.792252+00:00"
-            //    }
-            // }
-
             try {
                 JSONObject textJson = new JSONObject(text);
                 String textType = textJson.getString("type");
+
+                //
+                // responses
+                //
+                // message example
+                // {
+                //    "type":"response",
+                //    "attr":{
+                //       "object":"message",
+                //       "content":"Lorem ipsum dolor sit amet",
+                //       "file":{
+                //          "name":"pwbg.jpg",
+                //          "hash":"QmVAD7ZEdFWBGypKCT9JatP7x2jYwY4mm9jReUnpkwEGFy",
+                //          "url":"https://ipfs.io/ipfs/QmVAD7ZEdFWBGypKCT9JatP7x2jYwY4mm9jReUnpkwEGFy/pwbg.jpg"
+                //       },
+                //       "room":17,
+                //       "room_name":"Room example name",
+                //       "room_participants":[
+                //          1,
+                //          2,
+                //          3
+                //       ],
+                //       "sender":"admin",
+                //       "sender_id":1,
+                //       "sender_unique":"admin_k52w",
+                //       "location":{
+                //          "latitude":45.55397415161133,
+                //          "longitude":18.67446517944336
+                //       },
+                //       "message_id":276,
+                //       "time":1536790493470.4531
+                //    }
+                // }
 
                 //
                 // response
@@ -137,7 +133,109 @@ public class WebSocketService extends Service {
                 if (textType.equals("response")) {
                     // TODO: do response stuff here
                     // if response, store and UI
+                    JSONObject attr = textJson.getJSONObject("attr");
+
+                    String responseObjectType = attr.getString("object");
+
+                    if (responseObjectType.equals("message")) {
+                        // db data
+                        int messageId = attr.getInt("message_id");
+                        int roomId = attr.getInt("room");
+                        String sender = attr.getString("sender");
+                        String content = attr.getString("content");
+                        long timeCreated = attr.getLong("time");
+
+                        Location location = null;
+                        float latitude = -1,
+                              longitude = -1;
+                        if (!attr.isNull("location")) {
+                            JSONObject locationJson = attr.getJSONObject("location");
+                            latitude = (float)locationJson.getDouble("latitude");
+                            longitude = (float)locationJson.getDouble("longitude");
+                            location = new Location(latitude, longitude);
+                        }
+
+                        MessageFile file = null;
+                        String hash = null, name = null;
+                        if (!attr.isNull("file")) {
+                            JSONObject fileJson = attr.getJSONObject("file");
+                            hash = fileJson.getString("hash");
+                            name = fileJson.getString("name");
+                            file = new MessageFile(hash, name);
+                        }
+
+                        Message message = new Message(sender, content, timeCreated, location, file);
+
+                        boolean messageAlreadyReceived;
+                        messageAlreadyReceived = !sqlHelper.addMessage(messageId, roomId, message);
+
+                        if (!messageAlreadyReceived) {
+                            updateMessageSyncData(
+                                    messageId,
+                                    timeCreated
+                            );
+                            sendMessageBroadcast(
+                                    roomId,
+                                    sender,
+                                    content,
+                                    timeCreated,
+                                    location == null,
+                                    latitude,
+                                    longitude,
+                                    file == null,
+                                    hash,
+                                    name
+                            );
+                            sendMessageLiteBroadcast(
+                                    roomId,
+                                    message.toString(),
+                                    timeCreated
+                            );
+                        }
+                    }
                 }
+
+
+                //
+                // notifications
+                //
+                // room example
+                // {
+                //    "type":"notification",
+                //    "attr":{
+                //       "object":"room",
+                //       "name":"ROOM TEST 3",
+                //       "id":25,
+                //       "sender":"admin",
+                //       "sender_unique":"admin_mcs9",
+                //       "participants":[
+                //          1,
+                //          10,
+                //          9
+                //       ]
+                //    }
+                // }
+
+                // message example
+                // {
+                //    "type":"notification",
+                //    "attr":{
+                //       "object":"message",
+                //       "content":"Lorem ipsum dolor sit amet",
+                //       "file":null,
+                //       "room":25,
+                //       "room_participants":[
+                //          1,
+                //          9,
+                //          10
+                //       ],
+                //       "sender":"admin",
+                //       "sender_unique":"admin_mcs9",
+                //       "location":null,
+                //       "message_id":112,
+                //       "time":"2018-09-06 20:11:03.792252+00:00"
+                //    }
+                // }
 
                 //
                 // notification
@@ -264,6 +362,12 @@ public class WebSocketService extends Service {
         }
     }
 
+    public class WebSocketBinder extends Binder {
+        WebSocketService getService() {
+            return WebSocketService.this;
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -326,7 +430,7 @@ public class WebSocketService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        return mBinder;
     }
 
     private void sendRoomNotification(int roomId, String roomName, String creator) {
@@ -461,5 +565,63 @@ public class WebSocketService extends Service {
             }
         }
         return false;
+    }
+
+    public void sendMessage(String content, int fileId, int roomId, Location location) {
+        String message = "";
+        // example:
+        //  {
+        //      type: "create",
+        //      attr: {
+        //          object: "message",
+        //          sender_unique: "<username>_aH4x",
+        //          content: "lorem ipsum dolor sit amet",
+        //          file: <null or [1-9][0-9]*>
+        //          room: <any valid room pk/id>,
+        //          location: {
+        //              latitude: <some float>,
+        //              longitude: <some float>
+        //          } <or null>
+        //      }
+        //  }
+
+        try {
+            JSONObject messageJson = new JSONObject();
+            messageJson.put("type", "create");
+
+            JSONObject attrJson = new JSONObject();
+            attrJson.put("object", "message");
+            attrJson.put("sender_unique", usernameUnique);
+            attrJson.put("content", content);
+
+            if (fileId != -1) {
+                attrJson.put("file", fileId);
+            }
+            else {
+                attrJson.put("file", null);
+            }
+
+            attrJson.put("room", roomId);
+
+            JSONObject locationJson;
+            if (location != null) {
+                locationJson = new JSONObject();
+                locationJson.put("latitude", location.getLatitude());
+                locationJson.put("longitude", location.getLongitude());
+            }
+            else {
+                locationJson = null;
+            }
+            attrJson.put("location", locationJson);
+
+            messageJson.put("attr", attrJson);
+
+            message = messageJson.toString();
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        WebSocketSingleton.send(message);
     }
 }

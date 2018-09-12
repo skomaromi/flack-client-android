@@ -23,12 +23,8 @@ public class WebSocketSingleton {
     private static String mAddress, mToken, mUsernameUnique;
     private static int mRoomSince, mMessageSince;
     private static String mUrl;
-    //private static WebSocketListener mListener;
     private static WsStatusListener mListener;
-    private static WebSocket mSocket;
     private static WsManager mWsManager;
-
-    // private WebSocketSingleton() {}
 
     public static boolean create(Context context) {
         if (mInstance == null) {
@@ -62,7 +58,6 @@ public class WebSocketSingleton {
     public static void initialize(String address, String token,
                                   int room, int message,
                                   String usernameUnique,
-                                  //WebSocketListener listener) {
                                   WsStatusListener listener) {
         mAddress = address;
         mToken = token;
@@ -84,12 +79,7 @@ public class WebSocketSingleton {
         );
     }
 
-    public static WebSocketSingleton getInstance() {
-        return mInstance;
-    }
-
-    public void send(String message) {
-        // mSocket.send(message);
+    public static void send(String message) {
         mWsManager.sendMessage(message);
     }
 }

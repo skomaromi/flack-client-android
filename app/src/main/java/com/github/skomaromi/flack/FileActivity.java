@@ -167,7 +167,7 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
                 catch (Exception e) {
                     Toast.makeText(
                             FileActivity.this,
-                            "An error occured while downloading.",
+                            "An error occurred while downloading.",
                             Toast.LENGTH_SHORT
                          )
                          .show();
@@ -270,6 +270,4 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
             noFilesMessage.setVisibility(View.GONE);
         }
     }
-
-
 }

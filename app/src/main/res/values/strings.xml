@@ -26,4 +26,7 @@
     <!-- FileActivity -->
     <string name="title_file_activitylabel">Files</string>
     <string name="text_file_tv_nofiles">No uploaded files so far. Try reloading if you uploaded files from another device.</string>
+
+    <!-- FilePickActivity -->
+    <string name="text_filepick_tv_nofiles">@string/text_file_tv_nofiles</string>
 </resources>

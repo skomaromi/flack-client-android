@@ -58,6 +58,7 @@ class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHold
         Location location = message.getLocation();
         if (location != null) {
             holder.location.setText(location.toString());
+            holder.locationContainer.setVisibility(View.VISIBLE);
         }
         else {
             holder.locationContainer.setVisibility(View.GONE);
@@ -66,6 +67,7 @@ class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHold
         String content = message.getContent();
         if (content != null && !content.isEmpty()) {
             holder.content.setText(content);
+            holder.content.setVisibility(View.VISIBLE);
         }
         else {
             holder.content.setVisibility(View.GONE);
@@ -74,6 +76,7 @@ class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHold
         MessageFile file = message.getFile();
         if (file != null) {
             holder.file.setText(file.getName());
+            holder.fileContainer.setVisibility(View.VISIBLE);
         }
         else {
             holder.fileContainer.setVisibility(View.GONE);

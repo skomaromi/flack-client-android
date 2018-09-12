@@ -7,11 +7,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Locale;
 
 import okhttp3.FormBody;
 import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -24,6 +27,7 @@ public class FlackApi {
     private static final String ENDPOINT_ROOMS = "api/rooms/";
     private static final String ENDPOINT_MESSAGES = "api/messages/";
     private static final String ENDPOINT_FILES = "api/files/";
+    private static final String ENDPOINT_FILEUPLOAD = "api/files/upload/";
 
     private static final int HTTP_OK = 200;
     private static final String PING_EXPECTED_RESPONSE = "flack-pong";
@@ -289,5 +293,87 @@ public class FlackApi {
         }
 
         return files;
+    }
+
+    public int uploadFile(String filePath, Context context) {
+        // returns file ID on server
+        int fileId;
+
+        java.io.File file = new java.io.File(filePath);
+
+        OkHttpClient client = new OkHttpClient();
+
+        HttpUrl queryUrl = new HttpUrl.Builder()
+                                   .scheme(Constants.SERVER_PROTO)
+                                   .host(address)
+                                   .port(Constants.SERVER_PORT)
+                                   .addPathSegment(ENDPOINT_FILEUPLOAD)
+                                   .build();
+
+        String mimeType = URLConnection.guessContentTypeFromName(filePath);
+        MediaType type = MediaType.get(mimeType);
+        RequestBody fileRequestBody = RequestBody.create(type, file);
+
+        String fileName = file.getName();
+
+        RequestBody requestBody = new MultipartBody.Builder()
+                                          .setType(MultipartBody.FORM)
+                                          .addFormDataPart("file", fileName, fileRequestBody)
+                                          .addFormDataPart("token", token)
+                                          .build();
+
+        Request request = new Request.Builder()
+                                  .put(requestBody)
+                                  .url(queryUrl)
+                                  .build();
+
+        Response response;
+        String responseBody;
+        try {
+            response = client.newCall(request).execute();
+            responseBody = response.body().string();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            return -1;
+        }
+
+        String fileHash, fileSizeStr;
+        try {
+            // example response:
+            // {
+            //   "message":"success",
+            //   "file":{
+            //      "name":"<fileName>",
+            //      "hash":"<fileHash>",
+            //      "size":"999.9 kB",
+            //      "url":"https://ipfs.io/ipfs/<fileHash>/<fileName>",
+            //      "id":56
+            //   }
+            // }
+            JSONObject jsonResponse = new JSONObject(responseBody);
+            JSONObject fileJson = jsonResponse.getJSONObject("file");
+
+            fileId = fileJson.getInt("id");
+            fileHash = fileJson.getString("hash");
+            fileName = fileJson.getString("name");
+            fileSizeStr = fileJson.getString("size");
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+            return -1;
+        }
+
+        if (fileId != -1) {
+            SqlHelper sqlHelper = new SqlHelper(context);
+            sqlHelper.addFile(
+                    fileId,
+                    fileHash,
+                    fileName,
+                    fileSizeStr
+            );
+        }
+
+        return fileId;
     }
 }

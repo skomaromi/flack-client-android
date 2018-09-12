@@ -1,13 +1,30 @@
 package com.github.skomaromi.flack;
 
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.DownloadManager;
+import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.location.Criteria;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.os.IBinder;
+import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -15,8 +32,12 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.nbsp.materialfilepicker.ui.FilePickerActivity;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -24,23 +45,57 @@ import java.util.concurrent.TimeUnit;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
+import butterknife.OnTextChanged;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
 public class MessageActivity extends AppCompatActivity {
-    @BindView(R.id.message_rv) RecyclerView recyclerView;
-    @BindView(R.id.message_tv_nomessages) TextView noMessagesText;
+    @BindView(R.id.message_rv)
+    RecyclerView recyclerView;
+    @BindView(R.id.message_tv_nomessages)
+    TextView noMessagesText;
+
+    @BindView(R.id.message_et_text)
+    EditText messageTextField;
+    @BindView(R.id.message_btn_send)
+    ImageButton sendButton;
+    @BindView(R.id.message_btn_addlocation)
+    ImageButton locationButton;
+    @BindView(R.id.message_btn_addfile)
+    ImageButton fileButton;
 
     public static final String KEY_ROOMID = "room_id";
 
-    private WebSocketService mService;
     private int roomId;
+    private WebSocketService mService;
 
     private ArrayList<Message> mMessageArrayList;
     private MessageAdapter mAdapter;
     private SqlHelper mSqlHelper;
     private MessageBroadcastReceiver mBroadcastReceiver;
+
+    private ProgressDialog mProgressDialog;
+    private LocationManager mLocationManager;
+    private LocationListener mLocationListener;
+    private String mLocationProvider;
+
+    // currently written message data
+    private Location mMessageLocation;
+    private int mMessageFileId;
+    private String mMessageFilePath;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
+            mService = binder.getService();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {}
+    };
 
     private MessageClickCallback mOnFileClickCallback = new MessageClickCallback() {
         @Override
@@ -70,8 +125,7 @@ public class MessageActivity extends AppCompatActivity {
             mapIntent.setPackage("com.google.android.apps.maps");
             if (mapIntent.resolveActivity(getPackageManager()) != null) {
                 startActivity(mapIntent);
-            }
-            else {
+            } else {
                 Toast.makeText(
                         MessageActivity.this,
                         "Google Maps not installed.",
@@ -157,8 +211,8 @@ public class MessageActivity extends AppCompatActivity {
                             MessageActivity.this,
                             "Downloading file...",
                             Toast.LENGTH_SHORT
-                         )
-                         .show();
+                    )
+                            .show();
 
                     Uri uri = Uri.parse(url);
                     DownloadManager.Request request = new DownloadManager.Request(uri);
@@ -169,24 +223,22 @@ public class MessageActivity extends AppCompatActivity {
                     DownloadManager manager = (DownloadManager) MessageActivity.this.getSystemService(Context.DOWNLOAD_SERVICE);
                     // enqueue() NPE handled by a catch-all catch block below
                     manager.enqueue(request);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     Toast.makeText(
                             MessageActivity.this,
                             "An error occured while downloading.",
                             Toast.LENGTH_SHORT
-                         )
-                         .show();
+                    )
+                            .show();
                     e.printStackTrace();
                 }
-            }
-            else {
+            } else {
                 Toast.makeText(
                         MessageActivity.this,
                         "Cannot download file.",
                         Toast.LENGTH_SHORT
-                     )
-                     .show();
+                )
+                        .show();
             }
         }
 
@@ -206,10 +258,337 @@ public class MessageActivity extends AppCompatActivity {
             try {
                 response = client.newCall(request).execute();
                 return response.code() == 200;
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
                 return false;
+            }
+        }
+    }
+
+    @OnTextChanged(R.id.message_et_text)
+    public void messageTextChanged() {
+        String messageText;
+
+        messageText = messageTextField.getText().toString();
+
+        boolean shouldEnable = !messageText.isEmpty();
+
+        sendButton.setEnabled(shouldEnable);
+    }
+
+    @OnClick(R.id.message_btn_addlocation)
+    public void locationButtonClicked() {
+        if (mMessageLocation != null) {
+            mMessageLocation = null;
+            setLocationButtonState(false);
+            Toast.makeText(
+                    MessageActivity.this,
+                    "Location removed!",
+                    Toast.LENGTH_SHORT
+                 )
+                 .show();
+            return;
+        }
+
+        if (!isLocationTurnedOn()) {
+            Toast.makeText(
+                    MessageActivity.this,
+                    "Location not turned on.",
+                    Toast.LENGTH_SHORT
+                 )
+                 .show();
+            return;
+        }
+
+        mProgressDialog = new ProgressDialog(this);
+        mProgressDialog.setMessage("Acquiring location...");
+        mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                stopListeningForLocation();
+            }
+        });
+        mProgressDialog.show();
+        startListeningForLocation();
+    }
+
+    private boolean isLocationTurnedOn() {
+        int locationMode;
+
+        try {
+            locationMode = Settings.Secure.getInt(getContentResolver(), Settings.Secure.LOCATION_MODE);
+        }
+        catch (Settings.SettingNotFoundException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        return locationMode != Settings.Secure.LOCATION_MODE_OFF;
+    }
+
+    private class MessageLocationListener implements LocationListener {
+        @Override
+        public void onLocationChanged(android.location.Location location) {
+            if (location.getAccuracy() < 1000.0) {
+                locationFound(new Location(
+                        (float)location.getLatitude(),
+                        (float)location.getLongitude()
+                ));
+            }
+        }
+
+        @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
+        @Override public void onProviderEnabled(String provider) {}
+        @Override public void onProviderDisabled(String provider) {}
+    }
+
+    private void startListeningForLocation() {
+        if (mLocationManager == null) {
+            mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        }
+
+        if (mLocationListener == null) {
+            mLocationListener = new MessageLocationListener();
+        }
+
+        Criteria criteria = new Criteria();
+        mLocationProvider = mLocationManager.getBestProvider(criteria, true);
+
+        if (!hasLocationPermission()) {
+            requestPermission();
+        }
+        else {
+            requestUserLocationUpdates();
+        }
+    }
+
+    private void requestUserLocationUpdates() {
+        // permissions handled by preceding hasLocationPermission() and requestPermission() methods
+        mLocationManager.requestLocationUpdates(
+                mLocationProvider,
+                1000,
+                100,
+                mLocationListener
+        );
+    }
+
+    private boolean hasLocationPermission() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+            return true;
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+            return true;
+        return false;
+    }
+
+    private void requestPermission() {
+        String[] permissions = new String[]{
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+        };
+        ActivityCompat.requestPermissions(MessageActivity.this, permissions, Constants.REQCODE_PERMISSION_LOCATION);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case Constants.REQCODE_PERMISSION_LOCATION:
+                if (grantResults.length > 0) {
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED || grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                        requestUserLocationUpdates();
+                    }
+                    else {
+                        stopListeningForLocation();
+                    }
+                }
+        }
+    }
+
+    private void locationFound(Location location) {
+        mMessageLocation = location;
+        stopListeningForLocation();
+        setLocationButtonState(true);
+
+        Toast.makeText(
+                MessageActivity.this,
+                "Location found!",
+                Toast.LENGTH_SHORT)
+                .show();
+    }
+
+    private void stopListeningForLocation() {
+        Log.d(Constants.APP_NAME, "MessageActivity: location listening stopped!");
+        mLocationManager.removeUpdates(mLocationListener);
+        mProgressDialog.hide();
+    }
+
+    private void setLocationButtonState(boolean locationStored) {
+        if (locationStored) {
+            locationButton.setColorFilter(ContextCompat.getColor(this, R.color.colorPrimary));
+        }
+        else {
+            locationButton.clearColorFilter();
+        }
+    }
+
+    @OnClick(R.id.message_btn_addfile)
+    public void fileButtonClicked() {
+        boolean didRemoveFile = false;
+        if (mMessageFileId != -1) {
+            // file id set by internal FilePicker activity
+            mMessageFileId = -1;
+            didRemoveFile = true;
+
+        }
+        if (mMessageFilePath != null) {
+            // file Uri set by Android's file picker dialog
+            mMessageFilePath = null;
+            didRemoveFile = true;
+        }
+        if (didRemoveFile) {
+            setFileButtonState(false);
+            Toast.makeText(
+                    MessageActivity.this,
+                    "File removed from message.",
+                    Toast.LENGTH_SHORT
+                 )
+                 .show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Add file");
+        builder.setMessage("Do you want to share an existing file or upload a new one?");
+        builder.setNegativeButton("Cancel", null);
+        builder.setNeutralButton("Pick existing", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                startServerFilePickerActivity();
+            }
+        });
+        builder.setPositiveButton("Upload", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                startLocalFilePickerActivity();
+            }
+        });
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void startServerFilePickerActivity() {
+        Intent serverPickerActivity = new Intent(this, FilePickActivity.class);
+        startActivityForResult(serverPickerActivity, Constants.REQCODE_ACTIVITY_FILEPICKER);
+    }
+
+    private void startLocalFilePickerActivity() {
+        Intent pickerActivity = new Intent(this, FilePickerActivity.class);
+        // statement below is necessary to prevent MaterialFilePicker from NPE'ing
+        pickerActivity.putExtra(FilePickerActivity.ARG_CLOSEABLE, true);
+        startActivityForResult(pickerActivity, Constants.REQCODE_ACTIVITY_ANDROID_FILEPICKER);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == Constants.REQCODE_ACTIVITY_FILEPICKER && resultCode == Activity.RESULT_OK) {
+            mMessageFileId = data.getIntExtra(FilePickActivity.KEY_FILE_SERVERID, -1);
+            setFileButtonState(true);
+        }
+        else if (requestCode == Constants.REQCODE_ACTIVITY_ANDROID_FILEPICKER && resultCode == Activity.RESULT_OK) {
+            mMessageFilePath = data.getStringExtra(FilePickerActivity.RESULT_FILE_PATH);
+            setFileButtonState(true);
+        }
+    }
+
+    private void setFileButtonState(boolean fileStored) {
+        if (fileStored) {
+            fileButton.setColorFilter(ContextCompat.getColor(this, R.color.colorPrimary));
+        }
+        else {
+            fileButton.clearColorFilter();
+        }
+    }
+
+    @OnClick(R.id.message_btn_send)
+    public void sendButtonClicked() {
+        trySendMessage();
+    }
+
+    private void trySendMessage() {
+        if (mMessageFilePath != null) {
+            BackgroundUploadTask t = new BackgroundUploadTask();
+            t.execute(mMessageFilePath);
+        }
+        else {
+            String content = messageTextField.getText().toString();
+
+            mService.sendMessage(
+                    content,
+                    mMessageFileId,
+                    roomId,
+                    mMessageLocation
+            );
+
+            resetMessageInput();
+        }
+    }
+
+    private void resetMessageInput() {
+        // reset text
+        messageTextField.setText("");
+
+        // reset location
+        mMessageLocation = null;
+        setLocationButtonState(false);
+
+        // reset file
+        mMessageFileId = -1;
+        mMessageFilePath = null;
+        setFileButtonState(false);
+
+        // re-disable send button
+        sendButton.setEnabled(false);
+    }
+
+    private class BackgroundUploadTask extends AsyncTask<String, Void, Integer> {
+
+        @Override
+        protected void onPreExecute() {
+            mProgressDialog = new ProgressDialog(MessageActivity.this);
+            mProgressDialog.setMessage("Uploading...");
+            mProgressDialog.show();
+        }
+
+        @Override
+        protected Integer doInBackground(String... paths) {
+            String filePath;
+            if (paths.length == 0) {
+                return -1;
+            }
+            else {
+                filePath = paths[0];
+            }
+
+            FlackApi api = new FlackApi(MessageActivity.this);
+            int fileId = api.uploadFile(filePath, MessageActivity.this);
+            return fileId;
+        }
+
+        @Override
+        protected void onPostExecute(Integer fileId) {
+            if (fileId != -1) {
+                mMessageFileId = fileId;
+                mMessageFilePath = null;
+                mProgressDialog.hide();
+                trySendMessage();
+            }
+            else {
+                mProgressDialog.hide();
+                Toast.makeText(
+                        MessageActivity.this,
+                        "File upload failed.",
+                        Toast.LENGTH_SHORT
+                     )
+                     .show();
             }
         }
     }
@@ -227,12 +606,20 @@ public class MessageActivity extends AppCompatActivity {
         mSqlHelper = new SqlHelper(this);
         setUpTitle();
         setUpRecyclerView();
+        // getDraft();
+        resetMessageInput();
         setUpBroadcastReceiver();
         startWebSocketsService();
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         Log.d(Constants.APP_NAME, String.format("MessageActivity started with roomId '%d'!", roomId));
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        bindWebSocketsService();
     }
 
     @Override
@@ -245,6 +632,13 @@ public class MessageActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         FlackApplication.setCurrentRoom(FlackApplication.NO_ACTIVITY_VISIBLE);
+        // setDraft();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unbindService(mConnection);
     }
 
     @Override
@@ -254,14 +648,54 @@ public class MessageActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        scrollToBottom();
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case android.R.id.home:
-                finish();
+                if (!messageTextField.getText().toString().isEmpty()) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                    builder.setTitle("Discard message?");
+                    builder.setMessage("Your message will be lost if you close room without sending.");
+                    builder.setNegativeButton("Cancel", null);
+                    builder.setPositiveButton("Discard", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            finish();
+                        }
+                    });
+                    AlertDialog dialog = builder.create();
+                    dialog.show();
+                }
+                else finish();
                 return true;
         }
         return super.onOptionsItemSelected(item);
     }
+
+    @Override
+    public void onBackPressed() {
+        if (!messageTextField.getText().toString().isEmpty()) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Discard message?");
+            builder.setMessage("Your message will be lost if you close room without sending.");
+            builder.setNegativeButton("Cancel", null);
+            builder.setPositiveButton("Discard", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    finish();
+                }
+            });
+            AlertDialog dialog = builder.create();
+            dialog.show();
+        }
+        else super.onBackPressed();
+    }
+
 
     private void setUpBroadcastReceiver() {
         mBroadcastReceiver = new MessageBroadcastReceiver();
@@ -315,12 +749,33 @@ public class MessageActivity extends AppCompatActivity {
         }
         else {
             noMessagesText.setVisibility(View.GONE);
-            recyclerView.scrollToPosition(mMessageArrayList.size() - 1);
+            scrollToBottom();
         }
+    }
+
+    private void scrollToBottom() {
+        recyclerView.scrollToPosition(mMessageArrayList.size() - 1);
+    }
+
+    private void getDraft() {
+//        Log.d(Constants.APP_NAME, "getDraft called!");
+//        mMessageLocation = null;
+//        mMessageFileId = -1;
+//        mMessageFilePath = null;
+//        sendButton.setEnabled(false);
+    }
+
+    private void setDraft() {
+
     }
 
     private void startWebSocketsService() {
         Intent webSocketsService = new Intent(this, WebSocketService.class);
         startService(webSocketsService);
+    }
+
+    private void bindWebSocketsService() {
+        Intent webSocketsService = new Intent(this, WebSocketService.class);
+        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
     }
 }
