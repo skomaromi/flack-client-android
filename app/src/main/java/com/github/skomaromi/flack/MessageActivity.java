@@ -47,6 +47,7 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnTextChanged;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -86,6 +87,8 @@ public class MessageActivity extends AppCompatActivity {
     private int mMessageFileId;
     private String mMessageFilePath;
 
+    private MessageFile mPendingDownload;
+
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -100,11 +103,13 @@ public class MessageActivity extends AppCompatActivity {
         @Override
         public void onClick(Message message) {
             MessageFile file = message.getFile();
-            BackgroundDownloadTask t = new BackgroundDownloadTask(
-                    file.getHash(),
-                    file.getName()
-            );
-            t.execute();
+            if (!hasWritePermission()) {
+                setPendingDownload(file);
+                requestWritePermission();
+            }
+            else {
+                startDownload(file);
+            }
         }
     };
 
@@ -204,40 +209,46 @@ public class MessageActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(String url) {
+            flushPendingDownload();
+
             if (url != null) {
                 try {
                     Toast.makeText(
                             MessageActivity.this,
                             "Downloading file...",
                             Toast.LENGTH_SHORT
-                    )
-                            .show();
+                         )
+                         .show();
 
-                    Uri uri = Uri.parse(url);
+                    // NPEs handled by a catch-all catch block below
+                    String urlParsed = HttpUrl.parse(url).toString();
+                    Uri uri = Uri.parse(urlParsed);
+
                     DownloadManager.Request request = new DownloadManager.Request(uri);
                     request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
                     request.allowScanningByMediaScanner();
                     request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 
                     DownloadManager manager = (DownloadManager) MessageActivity.this.getSystemService(Context.DOWNLOAD_SERVICE);
-                    // enqueue() NPE handled by a catch-all catch block below
                     manager.enqueue(request);
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     Toast.makeText(
                             MessageActivity.this,
-                            "An error occured while downloading.",
+                            "An error occurred while downloading.",
                             Toast.LENGTH_SHORT
-                    )
-                            .show();
+                        )
+                        .show();
                     e.printStackTrace();
                 }
-            } else {
+            }
+            else {
                 Toast.makeText(
                         MessageActivity.this,
                         "Cannot download file.",
                         Toast.LENGTH_SHORT
-                )
-                        .show();
+                     )
+                     .show();
             }
         }
 
@@ -257,10 +268,35 @@ public class MessageActivity extends AppCompatActivity {
             try {
                 response = client.newCall(request).execute();
                 return response.code() == 200;
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 e.printStackTrace();
                 return false;
             }
+        }
+    }
+
+    private void startDownload(MessageFile file) {
+        BackgroundDownloadTask t = new BackgroundDownloadTask(
+                file.getHash(),
+                file.getName()
+        );
+        t.execute();
+    }
+
+    private void setPendingDownload(MessageFile file) {
+        mPendingDownload = file;
+    }
+
+    private void resumePendingDownload() {
+        if (mPendingDownload != null) {
+            startDownload(mPendingDownload);
+        }
+    }
+
+    private void flushPendingDownload() {
+        if (mPendingDownload != null) {
+            mPendingDownload = null;
         }
     }
 
@@ -402,6 +438,17 @@ public class MessageActivity extends AppCompatActivity {
                         showShortToast("Storage read permission not granted.");
                     }
                 }
+                break;
+            case Constants.REQCODE_PERMISSION_WRITE:
+                if (grantResults.length > 0) {
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                        resumePendingDownload();
+                    }
+                    else {
+                        flushPendingDownload();
+                        showShortToast("Storage write permission not granted.");
+                    }
+                }
         }
     }
 
@@ -539,6 +586,10 @@ public class MessageActivity extends AppCompatActivity {
         requestPermission(Manifest.permission.READ_EXTERNAL_STORAGE, Constants.REQCODE_PERMISSION_READ);
     }
 
+    private void requestWritePermission() {
+        requestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, Constants.REQCODE_PERMISSION_WRITE);
+    }
+
     private void requestPermission(String permission, int requestCode) {
         String[] permissions = new String[] { permission };
         ActivityCompat.requestPermissions(this, permissions, requestCode);
@@ -546,6 +597,10 @@ public class MessageActivity extends AppCompatActivity {
 
     private boolean hasReadPermission() {
         return hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE);
+    }
+
+    private boolean hasWritePermission() {
+        return hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
     }
 
     private boolean hasPermission(String permission) {

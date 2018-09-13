@@ -1,12 +1,17 @@
 package com.github.skomaromi.flack;
 
+import android.Manifest;
 import android.app.DownloadManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -36,14 +41,19 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
     private FileAdapter mAdapter;
     private SqlHelper mSqlHelper;
 
+    private MessageFile mPendingDownload;
+
     private FileClickCallback mDownloadClickCallback = new FileClickCallback() {
         @Override
         public void onClick(File file) {
-            BackgroundDownloadTask t = new BackgroundDownloadTask(
-                    file.getHash(),
-                    file.getName()
-            );
-            t.execute();
+            MessageFile download = new MessageFile(file.getHash(), file.getName());
+            if (!hasWritePermission()) {
+                setPendingDownload(download);
+                requestWritePermission();
+            }
+            else {
+                startDownload(download);
+            }
         }
     };
 
@@ -145,6 +155,8 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
 
         @Override
         protected void onPostExecute(String url) {
+            flushPendingDownload();
+
             if (url != null) {
                 try {
                     Toast.makeText(
@@ -206,6 +218,77 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
                 return false;
             }
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case Constants.REQCODE_PERMISSION_WRITE:
+                if (grantResults.length > 0) {
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                        resumePendingDownload();
+                    }
+                    else {
+                        flushPendingDownload();
+                        showShortToast("Storage write permission not granted.");
+                    }
+                }
+        }
+    }
+
+    private void startDownload(MessageFile file) {
+        BackgroundDownloadTask t = new BackgroundDownloadTask(
+                file.getHash(),
+                file.getName()
+        );
+        t.execute();
+    }
+
+    private void setPendingDownload(MessageFile file) {
+        mPendingDownload = file;
+    }
+
+    private void resumePendingDownload() {
+        if (mPendingDownload != null) {
+            startDownload(mPendingDownload);
+        }
+    }
+
+    private void flushPendingDownload() {
+        if (mPendingDownload != null) {
+            mPendingDownload = null;
+        }
+    }
+
+    private void requestWritePermission() {
+        requestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, Constants.REQCODE_PERMISSION_WRITE);
+    }
+
+    private void requestPermission(String permission, int requestCode) {
+        String[] permissions = new String[] { permission };
+        ActivityCompat.requestPermissions(this, permissions, requestCode);
+    }
+
+    private boolean hasWritePermission() {
+        return hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+    }
+
+    private boolean hasPermission(String permission) {
+        if (ActivityCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED)
+            return true;
+        return false;
+    }
+
+    private void showShortToast(String text) {
+        showToast(text, true);
+    }
+
+    private void showToast(String text, boolean isShort) {
+        Toast.makeText(
+                this,
+                text,
+                isShort? Toast.LENGTH_SHORT : Toast.LENGTH_LONG
+        ).show();
     }
 
     @Override

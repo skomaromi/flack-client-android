@@ -312,7 +312,13 @@ public class FlackApi {
                                    .build();
 
         String mimeType = URLConnection.guessContentTypeFromName(filePath);
-        MediaType type = MediaType.get(mimeType);
+        MediaType type;
+        if (mimeType == null) {
+            type = MediaType.get("application/octet-stream");
+        }
+        else {
+            type = MediaType.get(mimeType);
+        }
         RequestBody fileRequestBody = RequestBody.create(type, file);
 
         String fileName = file.getName();
