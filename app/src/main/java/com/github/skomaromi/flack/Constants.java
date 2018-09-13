@@ -15,6 +15,7 @@ public class Constants {
      */
     public static final int REQCODE_ACTIVITY_ANDROID_FILEPICKER = 5;
     public static final int REQCODE_PERMISSION_LOCATION = 6;
+    public static final int REQCODE_PERMISSION_READ = 7;
 
     public static final String SERVER_PROTO = "http";
     public static final String SERVER_DEFAULT_ADDR = "flackserver";

@@ -281,7 +281,7 @@ public class MessageActivity extends AppCompatActivity {
             mMessageLocation = null;
             setLocationButtonState(false);
             Toast.makeText(
-                    MessageActivity.this,
+                    this,
                     "Location removed!",
                     Toast.LENGTH_SHORT
                  )
@@ -291,7 +291,7 @@ public class MessageActivity extends AppCompatActivity {
 
         if (!isLocationTurnedOn()) {
             Toast.makeText(
-                    MessageActivity.this,
+                    this,
                     "Location not turned on.",
                     Toast.LENGTH_SHORT
                  )
@@ -354,7 +354,7 @@ public class MessageActivity extends AppCompatActivity {
         mLocationProvider = mLocationManager.getBestProvider(criteria, true);
 
         if (!hasLocationPermission()) {
-            requestPermission();
+            requestLocationPermission();
         }
         else {
             requestUserLocationUpdates();
@@ -362,7 +362,7 @@ public class MessageActivity extends AppCompatActivity {
     }
 
     private void requestUserLocationUpdates() {
-        // permissions handled by preceding hasLocationPermission() and requestPermission() methods
+        // permissions handled by preceding hasLocationPermission() and requestLocationPermission() methods
         mLocationManager.requestLocationUpdates(
                 mLocationProvider,
                 1000,
@@ -372,16 +372,11 @@ public class MessageActivity extends AppCompatActivity {
     }
 
     private boolean hasLocationPermission() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-            return true;
-        return false;
+        return hasPermission(Manifest.permission.ACCESS_FINE_LOCATION);
     }
 
-    private void requestPermission() {
-        String[] permissions = new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION
-        };
-        ActivityCompat.requestPermissions(this, permissions, Constants.REQCODE_PERMISSION_LOCATION);
+    private void requestLocationPermission() {
+        requestPermission(Manifest.permission.ACCESS_FINE_LOCATION, Constants.REQCODE_PERMISSION_LOCATION);
     }
 
     @Override
@@ -394,9 +389,36 @@ public class MessageActivity extends AppCompatActivity {
                     }
                     else {
                         stopListeningForLocation();
+                        showShortToast("Location permission not granted.");
+                    }
+                }
+                break;
+            case Constants.REQCODE_PERMISSION_READ:
+                if (grantResults.length > 0) {
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                        startLocalFilePickerActivity();
+                    }
+                    else {
+                        showShortToast("Storage read permission not granted.");
                     }
                 }
         }
+    }
+
+    private void showShortToast(String text) {
+        showToast(text, true);
+    }
+
+    private void showLongToast(String text) {
+        showToast(text, false);
+    }
+
+    private void showToast(String text, boolean isShort) {
+        Toast.makeText(
+                this,
+                text,
+                isShort? Toast.LENGTH_SHORT : Toast.LENGTH_LONG
+             ).show();
     }
 
     private void locationFound(Location location) {
@@ -405,7 +427,7 @@ public class MessageActivity extends AppCompatActivity {
         setLocationButtonState(true);
 
         Toast.makeText(
-                MessageActivity.this,
+                this,
                 "Location found!",
                 Toast.LENGTH_SHORT)
                 .show();
@@ -443,7 +465,7 @@ public class MessageActivity extends AppCompatActivity {
         if (didRemoveFile) {
             setFileButtonState(false);
             Toast.makeText(
-                    MessageActivity.this,
+                    this,
                     "File removed from message.",
                     Toast.LENGTH_SHORT
                  )
@@ -464,7 +486,7 @@ public class MessageActivity extends AppCompatActivity {
         builder.setPositiveButton("Upload", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                startLocalFilePickerActivity();
+                safeStartLocalFilePickerActivity();
             }
         });
         AlertDialog dialog = builder.create();
@@ -474,6 +496,15 @@ public class MessageActivity extends AppCompatActivity {
     private void startServerFilePickerActivity() {
         Intent serverPickerActivity = new Intent(this, FilePickActivity.class);
         startActivityForResult(serverPickerActivity, Constants.REQCODE_ACTIVITY_FILEPICKER);
+    }
+
+    private void safeStartLocalFilePickerActivity() {
+        if (!hasReadPermission()) {
+            requestReadPermission();
+        }
+        else {
+            startLocalFilePickerActivity();
+        }
     }
 
     private void startLocalFilePickerActivity() {
@@ -502,6 +533,25 @@ public class MessageActivity extends AppCompatActivity {
         else {
             fileButton.clearColorFilter();
         }
+    }
+
+    private void requestReadPermission() {
+        requestPermission(Manifest.permission.READ_EXTERNAL_STORAGE, Constants.REQCODE_PERMISSION_READ);
+    }
+
+    private void requestPermission(String permission, int requestCode) {
+        String[] permissions = new String[] { permission };
+        ActivityCompat.requestPermissions(this, permissions, requestCode);
+    }
+
+    private boolean hasReadPermission() {
+        return hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE);
+    }
+
+    private boolean hasPermission(String permission) {
+        if (ActivityCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED)
+            return true;
+        return false;
     }
 
     @OnClick(R.id.message_btn_send)
