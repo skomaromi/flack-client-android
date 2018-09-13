@@ -93,8 +93,7 @@ public class MessageActivity extends AppCompatActivity {
             mService = binder.getService();
         }
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {}
+        @Override public void onServiceDisconnected(ComponentName name) {}
     };
 
     private MessageClickCallback mOnFileClickCallback = new MessageClickCallback() {
@@ -606,7 +605,6 @@ public class MessageActivity extends AppCompatActivity {
         mSqlHelper = new SqlHelper(this);
         setUpTitle();
         setUpRecyclerView();
-        // getDraft();
         resetMessageInput();
         setUpBroadcastReceiver();
         startWebSocketsService();
@@ -632,7 +630,6 @@ public class MessageActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         FlackApplication.setCurrentRoom(FlackApplication.NO_ACTIVITY_VISIBLE);
-        // setDraft();
     }
 
     @Override
@@ -755,18 +752,6 @@ public class MessageActivity extends AppCompatActivity {
 
     private void scrollToBottom() {
         recyclerView.scrollToPosition(mMessageArrayList.size() - 1);
-    }
-
-    private void getDraft() {
-//        Log.d(Constants.APP_NAME, "getDraft called!");
-//        mMessageLocation = null;
-//        mMessageFileId = -1;
-//        mMessageFilePath = null;
-//        sendButton.setEnabled(false);
-    }
-
-    private void setDraft() {
-
     }
 
     private void startWebSocketsService() {

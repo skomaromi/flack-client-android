@@ -124,7 +124,7 @@ class SqlHelper extends SQLiteOpenHelper {
 
         MessageFile file = null;
         if (!cursor.isNull(cursor.getColumnIndex(MessageEntry.COL_FILE_HASH))) {
-            // TODO: see if using isNull is good enough
+            // so far it seems using isNull is good enough
             String hash = cursor.getString(cursor.getColumnIndex(MessageEntry.COL_FILE_HASH));
             String name = cursor.getString(cursor.getColumnIndex(MessageEntry.COL_FILE_NAME));
 

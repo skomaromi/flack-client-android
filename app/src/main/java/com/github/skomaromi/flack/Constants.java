@@ -7,13 +7,14 @@ public class Constants {
     public static final int REQCODE_ACTIVITY_AUTH = 1;
     public static final int REQCODE_ACTIVITY_SERVERINPUT = 2;
     public static final int REQCODE_ACTIVITY_FILEPICKER = 3;
+    public static final int REQCODE_ACTIVITY_ROOMCREATE = 4;
 
     /*
      * special request codes. kept here to prevent accidentally having the same request code for
      * different purposes
      */
-    public static final int REQCODE_ACTIVITY_ANDROID_FILEPICKER = 4;
-    public static final int REQCODE_PERMISSION_LOCATION = 5;
+    public static final int REQCODE_ACTIVITY_ANDROID_FILEPICKER = 5;
+    public static final int REQCODE_PERMISSION_LOCATION = 6;
 
     public static final String SERVER_PROTO = "http";
     public static final String SERVER_DEFAULT_ADDR = "flackserver";

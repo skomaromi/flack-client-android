@@ -1,9 +1,14 @@
 package com.github.skomaromi.flack;
 
+import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -19,10 +24,12 @@ import java.util.Collections;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 public class RoomActivity extends AppCompatActivity {
     @BindView(R.id.room_rv) RecyclerView recyclerView;
     @BindView(R.id.room_tv_norooms) TextView noRoomsMessage;
+    @BindView(R.id.room_fab_addroom) FloatingActionButton addRoomButton;
 
     public static final String KEY_ADDRESS = "address";
     public static final String KEY_AUTHTOKEN = "authtoken";
@@ -32,11 +39,22 @@ public class RoomActivity extends AppCompatActivity {
      * such as intent data insertion code in StartActivity
      */
     private String address, token;
+    private WebSocketService mService;
 
     private ArrayList<Room> mRoomArrayList;
     private RoomAdapter mAdapter;
     private SqlHelper mSqlHelper;
     private RoomBroadcastReceiver mBroadcastReceiver;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
+            mService = binder.getService();
+        }
+
+        @Override public void onServiceDisconnected(ComponentName name) {}
+    };
 
     private RoomClickCallback mOnRoomClickCallback = new RoomClickCallback() {
         @Override
@@ -71,6 +89,29 @@ public class RoomActivity extends AppCompatActivity {
         }
     }
 
+    @OnClick(R.id.room_fab_addroom)
+    public void addRoomButtonClicked() {
+        startRoomCreateActivity();
+    }
+
+    private void startRoomCreateActivity() {
+        Intent roomCreateActivity = new Intent(this, RoomCreateActivity.class);
+        startActivityForResult(roomCreateActivity, Constants.REQCODE_ACTIVITY_ROOMCREATE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == Constants.REQCODE_ACTIVITY_ROOMCREATE && resultCode == Activity.RESULT_OK) {
+            String name = data.getStringExtra(RoomCreateActivity.KEY_NAME);
+            int[] participants = data.getIntArrayExtra(RoomCreateActivity.KEY_PARTICIPANTS);
+
+            mService.sendRoom(
+                    name,
+                    participants
+            );
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,6 +129,12 @@ public class RoomActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        bindWebSocketsService();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         FlackApplication.setCurrentRoom(FlackApplication.ON_ROOM_LIST);
@@ -97,6 +144,12 @@ public class RoomActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         FlackApplication.setCurrentRoom(FlackApplication.NO_ACTIVITY_VISIBLE);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unbindService(mConnection);
     }
 
     @Override
@@ -199,5 +252,10 @@ public class RoomActivity extends AppCompatActivity {
     private void startWebSocketsService() {
         Intent webSocketsService = new Intent(this, WebSocketService.class);
         startService(webSocketsService);
+    }
+
+    private void bindWebSocketsService() {
+        Intent webSocketsService = new Intent(this, WebSocketService.class);
+        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
     }
 }

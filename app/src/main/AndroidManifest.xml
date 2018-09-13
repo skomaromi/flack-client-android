@@ -43,6 +43,10 @@
         <activity
             android:name=".FilePickActivity"
             android:label="Pick a file" />
+        <activity
+            android:name=".RoomCreateActivity"
+            android:label="Create a room"
+            android:configChanges="orientation|screenSize" />
 
         <service
             android:name=".WebSocketService"

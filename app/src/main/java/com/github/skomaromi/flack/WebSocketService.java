@@ -51,14 +51,13 @@ public class WebSocketService extends Service {
     private SharedPreferencesHelper prefs;
     private FlackWsStatusListener listener;
     private SqlHelper sqlHelper;
+    private int userId;
     private String usernameUnique;
     private boolean alreadyStarted;
 
     private class FlackWsStatusListener extends WsStatusListener {
-        private int userId;
 
         public FlackWsStatusListener() {
-            userId = prefs.getInt(SharedPreferencesHelper.KEY_USERID);
             Log.d(Constants.APP_NAME, String.format("FWSL: userId: %d", userId));
         }
 
@@ -97,6 +96,17 @@ public class WebSocketService extends Service {
                 //
                 // responses
                 //
+                // room example
+                // {
+                //    "type":"response",
+                //    "attr":{
+                //       "object":"room",
+                //       "name":"Lorem talk",
+                //       "id":84,
+                //       "time":1536809666507.053
+                //    }
+                // }
+
                 // message example
                 // {
                 //    "type":"response",
@@ -136,8 +146,21 @@ public class WebSocketService extends Service {
                     JSONObject attr = textJson.getJSONObject("attr");
 
                     String responseObjectType = attr.getString("object");
+                    if (responseObjectType.equals("room")) {
+                        // db data
+                        int id = attr.getInt("id");
+                        String name = attr.getString("name");
+                        long created = attr.getLong("time");
 
-                    if (responseObjectType.equals("message")) {
+                        boolean roomAlreadyReceived;
+                        roomAlreadyReceived = !sqlHelper.addRoom(id, name, created);
+
+                        if (!roomAlreadyReceived) {
+                            updateRoomSyncData(id, created);
+                            sendRoomBroadcast(id, name, created);
+                        }
+                    }
+                    else if (responseObjectType.equals("message")) {
                         // db data
                         int messageId = attr.getInt("message_id");
                         int roomId = attr.getInt("room");
@@ -384,6 +407,8 @@ public class WebSocketService extends Service {
         if (!alreadyStarted) {
             prefs = new SharedPreferencesHelper(this);
 
+            userId = prefs.getInt(SharedPreferencesHelper.KEY_USERID);
+
             usernameUnique = String.format(
                     "%s_%s",
 
@@ -567,6 +592,44 @@ public class WebSocketService extends Service {
         return false;
     }
 
+    public void sendRoom(String name, int[] participants) {
+        String room = "";
+        // example:
+        //  {
+        //      type: "create",
+        //      attr: {
+        //          object: "room",
+        //          sender_unique: "<username>_aH4x",
+        //          name: name,
+        //          participants: participants
+        //      }
+        //  }
+
+        try {
+            JSONObject roomJson = new JSONObject();
+            roomJson.put("type", "create");
+
+            JSONObject attrJson = new JSONObject();
+            attrJson.put("object", "room");
+            attrJson.put("sender_unique", usernameUnique);
+            attrJson.put("name", name);
+
+            participants[participants.length - 1] = userId;
+            JSONArray participantsJson = new JSONArray(participants);
+            attrJson.put("participants", participantsJson);
+
+            roomJson.put("attr", attrJson);
+
+            room = roomJson.toString();
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        WebSocketSingleton.send(room);
+    }
+
     public void sendMessage(String content, int fileId, int roomId, Location location) {
         String message = "";
         // example:
@@ -620,6 +683,7 @@ public class WebSocketService extends Service {
         }
         catch (JSONException e) {
             e.printStackTrace();
+            return;
         }
 
         WebSocketSingleton.send(message);

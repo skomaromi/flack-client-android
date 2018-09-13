@@ -20,21 +20,21 @@ import butterknife.OnClick;
 import butterknife.OnTextChanged;
 
 public class AuthActivity extends AppCompatActivity {
-    @BindView(R.id.auth_tie_loginusername)
+    @BindView(R.id.auth_tiet_loginusername)
     TextInputEditText loginUsernameField;
-    @BindView(R.id.auth_tie_loginpassword)
+    @BindView(R.id.auth_tiet_loginpassword)
     TextInputEditText loginPasswordField;
     @BindView(R.id.auth_btn_login)
     Button loginButton;
 
     @BindView(R.id.auth_til_registerusername)
     TextInputLayout registerUsernameFieldContainer;
-    @BindView(R.id.auth_tie_registerusername)
+    @BindView(R.id.auth_tiet_registerusername)
     TextInputEditText registerUsernameField;
 
     @BindView(R.id.auth_til_registerpassword)
     TextInputLayout registerPasswordFieldContainer;
-    @BindView(R.id.auth_tie_registerpassword)
+    @BindView(R.id.auth_tiet_registerpassword)
     TextInputEditText registerPasswordField;
 
     @BindView(R.id.auth_btn_register)
@@ -74,8 +74,8 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     @OnTextChanged({
-            R.id.auth_tie_loginusername,
-            R.id.auth_tie_loginpassword
+            R.id.auth_tiet_loginusername,
+            R.id.auth_tiet_loginpassword
     })
     public void loginTextFieldsChanged() {
         String username, password;
@@ -165,8 +165,8 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     @OnTextChanged({
-            R.id.auth_tie_registerusername,
-            R.id.auth_tie_registerpassword
+            R.id.auth_tiet_registerusername,
+            R.id.auth_tiet_registerpassword
     })
     public void registerTextFieldsChanged() {
         String username, password;
@@ -188,7 +188,7 @@ public class AuthActivity extends AppCompatActivity {
         registerButton.setEnabled(shouldEnable);
     }
 
-    @OnTextChanged(R.id.auth_tie_registerusername)
+    @OnTextChanged(R.id.auth_tiet_registerusername)
     public void registerUsernameFieldChanged() {
         String username = registerUsernameField.getText().toString();
 
@@ -206,7 +206,7 @@ public class AuthActivity extends AppCompatActivity {
         }
     }
 
-    @OnTextChanged(R.id.auth_tie_registerpassword)
+    @OnTextChanged(R.id.auth_tiet_registerpassword)
     public void registerPasswordFieldChanged() {
         String password = registerPasswordField.getText().toString();
 

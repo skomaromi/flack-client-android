@@ -29,4 +29,7 @@
 
     <!-- FilePickActivity -->
     <string name="text_filepick_tv_nofiles">@string/text_file_tv_nofiles</string>
+
+    <!-- RoomCreateActivity -->
+    <string name="text_roomcreate_tv_norooms">No other users yet. Invite your friends to join Flack!</string>
 </resources>

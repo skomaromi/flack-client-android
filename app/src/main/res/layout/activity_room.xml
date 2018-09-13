@@ -21,4 +21,14 @@
         android:layout_centerVertical="true"
         android:visibility="gone"/>
 
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/room_fab_addroom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="@dimen/layoutpadding_all"
+        android:src="@drawable/icon_add"
+        android:tint="@color/textOnPrimary" />
+
 </RelativeLayout>

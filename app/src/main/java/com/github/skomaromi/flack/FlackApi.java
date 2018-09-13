@@ -28,6 +28,7 @@ public class FlackApi {
     private static final String ENDPOINT_MESSAGES = "api/messages/";
     private static final String ENDPOINT_FILES = "api/files/";
     private static final String ENDPOINT_FILEUPLOAD = "api/files/upload/";
+    private static final String ENDPOINT_USERS = "api/auth/users/";
 
     private static final int HTTP_OK = 200;
     private static final String PING_EXPECTED_RESPONSE = "flack-pong";
@@ -375,5 +376,66 @@ public class FlackApi {
         }
 
         return fileId;
+    }
+
+    public ArrayList<User> getUsers() {
+        ArrayList<User> users = new ArrayList<>();
+
+        OkHttpClient client = new OkHttpClient();
+
+        HttpUrl queryUrl = new HttpUrl.Builder()
+                                   .scheme(Constants.SERVER_PROTO)
+                                   .host(address)
+                                   .port(Constants.SERVER_PORT)
+                                   .addPathSegment(ENDPOINT_USERS)
+                                   .addQueryParameter("token", token)
+                                   .build();
+
+        Request request = new Request.Builder()
+                                  .get()
+                                  .url(queryUrl)
+                                  .build();
+
+        Response response;
+        String responseBody;
+        try {
+            response = client.newCall(request).execute();
+            responseBody = response.body().string();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            return users;
+        }
+
+        try {
+            // example response:
+            // [
+            //    {
+            //       "id":2,
+            //       "username":"anotheruser"
+            //    },
+            //    {
+            //       "id":3,
+            //       "username":"exampleuser"
+            //    }
+            // ]
+            JSONArray userJsons = new JSONArray(responseBody);
+
+            for (int i = 0; i < userJsons.length(); i++) {
+                JSONObject userJson = userJsons.getJSONObject(i);
+
+                int serverId = userJson.getInt("id");
+                String username = userJson.getString("username");
+
+                User user = new User(serverId, username);
+                users.add(user);
+            }
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+            return users;
+        }
+
+        return users;
     }
 }
