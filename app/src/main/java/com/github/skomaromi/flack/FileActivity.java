@@ -2,14 +2,19 @@ package com.github.skomaromi.flack;
 
 import android.Manifest;
 import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -36,6 +41,7 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
     @BindView(R.id.file_rv) RecyclerView recyclerView;
     @BindView(R.id.file_srl) SwipeRefreshLayout swipeRefreshLayout;
     @BindView(R.id.file_tv_nofiles) TextView noFilesMessage;
+    @BindView(R.id.file_el_noconnection) View noConnectionMessage;
 
     private ArrayList<File> mFileArrayList;
     private FileAdapter mAdapter;
@@ -43,11 +49,29 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
 
     private MessageFile mPendingDownload;
 
+    private WebSocketService mService;
+    private FileBroadcastReceiver mBroadcastReceiver;
+    private boolean mConnected;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
+            mService = binder.getService();
+            setUiConnectionState(mService.isConnected());
+        }
+
+        @Override public void onServiceDisconnected(ComponentName name) {}
+    };
+
     private FileClickCallback mDownloadClickCallback = new FileClickCallback() {
         @Override
         public void onClick(File file) {
             MessageFile download = new MessageFile(file.getHash(), file.getName());
-            if (!hasWritePermission()) {
+            if (!mConnected) {
+                showShortToast("No connection.");
+            }
+            else if (!hasWritePermission()) {
                 setPendingDownload(download);
                 requestWritePermission();
             }
@@ -99,6 +123,18 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
                  .show();
         }
     };
+
+    private class FileBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int objectType = intent.getIntExtra(WebSocketService.KEY_OBJECTTYPE, -1);
+
+            if (objectType == WebSocketService.TYPE_CONNSTATUSCHANGED) {
+                boolean connected = intent.getBooleanExtra(WebSocketService.KEY_CONNSTATUS, false);
+                setUiConnectionState(connected);
+            }
+        }
+    }
 
     private class BackgroundFileFetchTask extends AsyncTask<Void, Void, Void> {
         @Override
@@ -303,6 +339,16 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
         setUpRecyclerView();
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+        setUpBroadcastReceiver();
+
+        setUiConnectionState(false);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        bindWebSocketsService();
     }
 
     @Override
@@ -313,6 +359,18 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
     @Override
     protected void onPause() {
         super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unbindService(mConnection);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(mBroadcastReceiver);
     }
 
     @Override
@@ -329,6 +387,15 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
                 return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void setUpBroadcastReceiver() {
+        mBroadcastReceiver = new FileBroadcastReceiver();
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Constants.APP_PKG_NAME);
+
+        registerReceiver(mBroadcastReceiver, filter);
     }
 
     private void setUpRecyclerView() {
@@ -351,6 +418,29 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
         }
         else {
             noFilesMessage.setVisibility(View.GONE);
+        }
+    }
+
+    private void bindWebSocketsService() {
+        Intent webSocketsService = new Intent(this, WebSocketService.class);
+        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void setUiConnectionState(boolean connected) {
+        mConnected = connected;
+
+        swipeRefreshLayout.setEnabled(connected);
+
+        boolean shouldShowNoConnectionMsg = !connected;
+        setNoConnectionMessageVisible(shouldShowNoConnectionMsg);
+    }
+
+    private void setNoConnectionMessageVisible(boolean visible) {
+        if (visible) {
+            noConnectionMessage.setVisibility(View.VISIBLE);
+        }
+        else {
+            noConnectionMessage.setVisibility(View.GONE);
         }
     }
 }

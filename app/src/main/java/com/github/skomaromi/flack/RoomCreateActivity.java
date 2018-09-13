@@ -2,9 +2,15 @@ package com.github.skomaromi.flack;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.os.AsyncTask;
+import android.os.IBinder;
 import android.support.design.widget.TextInputEditText;
 import android.support.design.widget.TextInputLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -33,6 +39,8 @@ public class RoomCreateActivity extends AppCompatActivity {
     @BindView(R.id.roomcreate_tv_userslabel) TextView userListLabel;
     @BindView(R.id.roomcreate_tv_nousers) TextView noUsersMessage;
 
+    @BindView(R.id.roomcreate_el_noconnection) View noConnectionMessage;
+
     public static final String KEY_NAME = "room_name";
     public static final String KEY_PARTICIPANTS = "room_participants";
 
@@ -41,6 +49,21 @@ public class RoomCreateActivity extends AppCompatActivity {
     private RoomCreateAdapter mAdapter;
     private ProgressDialog mProgressDialog;
     private MenuItem mCreateButton;
+
+    private WebSocketService mService;
+    private RoomCreateBroadcastReceiver mBroadcastReceiver;
+    private boolean mConnected;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
+            mService = binder.getService();
+            setUiConnectionState(mService.isConnected());
+        }
+
+        @Override public void onServiceDisconnected(ComponentName name) {}
+    };
 
     private UserClickCallback mUserClickCallback = new UserClickCallback() {
         @Override
@@ -58,6 +81,18 @@ public class RoomCreateActivity extends AppCompatActivity {
             validateInputs();
         }
     };
+
+    private class RoomCreateBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int objectType = intent.getIntExtra(WebSocketService.KEY_OBJECTTYPE, -1);
+
+            if (objectType == WebSocketService.TYPE_CONNSTATUSCHANGED) {
+                boolean connected = intent.getBooleanExtra(WebSocketService.KEY_CONNSTATUS, false);
+                setUiConnectionState(connected);
+            }
+        }
+    }
 
     private class BackgroundUserFetchTask extends AsyncTask<Void, Void, Void> {
         @Override
@@ -115,6 +150,28 @@ public class RoomCreateActivity extends AppCompatActivity {
 
         getSupportActionBar().setHomeAsUpIndicator(R.drawable.icon_close_fff);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+        setUpBroadcastReceiver();
+
+        setUiConnectionState(false);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        bindWebSocketsService();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unbindService(mConnection);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(mBroadcastReceiver);
     }
 
     @Override
@@ -154,6 +211,15 @@ public class RoomCreateActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    private void setUpBroadcastReceiver() {
+        mBroadcastReceiver = new RoomCreateBroadcastReceiver();
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Constants.APP_PKG_NAME);
+
+        registerReceiver(mBroadcastReceiver, filter);
+    }
+
     private void setUpRecyclerView() {
         mUserArrayList = new ArrayList<>();
 
@@ -180,7 +246,7 @@ public class RoomCreateActivity extends AppCompatActivity {
     }
 
     private void validateInputs() {
-        if (isRoomMemberCountOk() && isRoomNameValid()) {
+        if (isRoomMemberCountOk() && isRoomNameValid() && mConnected) {
             mCreateButton.setEnabled(true);
         }
         else {
@@ -218,5 +284,37 @@ public class RoomCreateActivity extends AppCompatActivity {
     private void fetchUsers() {
         BackgroundUserFetchTask t = new BackgroundUserFetchTask();
         t.execute();
+    }
+
+    private void bindWebSocketsService() {
+        Intent webSocketsService = new Intent(this, WebSocketService.class);
+        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void setUiConnectionState(boolean connected) {
+        mConnected = connected;
+
+        // this might happen before mCreateButton is instantiated, so check if
+        // mCreateButton is not null beforehand
+        if (mCreateButton != null) {
+            if (!connected) {
+                // don't bother validating if not connected
+                mCreateButton.setEnabled(false);
+            } else {
+                validateInputs();
+            }
+        }
+
+        boolean shouldShowNoConnectionMsg = !connected;
+        setNoConnectionMessageVisible(shouldShowNoConnectionMsg);
+    }
+
+    private void setNoConnectionMessageVisible(boolean visible) {
+        if (visible) {
+            noConnectionMessage.setVisibility(View.VISIBLE);
+        }
+        else {
+            noConnectionMessage.setVisibility(View.GONE);
+        }
     }
 }

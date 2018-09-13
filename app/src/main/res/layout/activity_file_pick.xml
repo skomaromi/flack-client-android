@@ -14,6 +14,10 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <include
+            android:id="@+id/filepick_el_noconnection"
+            layout="@layout/element_no_connection_message" />
+
         <TextView
             android:id="@+id/filepick_tv_nofiles"
             android:layout_width="wrap_content"

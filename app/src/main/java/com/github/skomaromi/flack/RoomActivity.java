@@ -7,8 +7,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.res.ColorStateList;
 import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -30,6 +32,7 @@ public class RoomActivity extends AppCompatActivity {
     @BindView(R.id.room_rv) RecyclerView recyclerView;
     @BindView(R.id.room_tv_norooms) TextView noRoomsMessage;
     @BindView(R.id.room_fab_addroom) FloatingActionButton addRoomButton;
+    @BindView(R.id.room_el_noconnection) View noConnectionMessage;
 
     public static final String KEY_ADDRESS = "address";
     public static final String KEY_AUTHTOKEN = "authtoken";
@@ -51,6 +54,7 @@ public class RoomActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
             mService = binder.getService();
+            setUiConnectionState(mService.isConnected());
         }
 
         @Override public void onServiceDisconnected(ComponentName name) {}
@@ -85,6 +89,10 @@ public class RoomActivity extends AppCompatActivity {
                         intent.getStringExtra(WebSocketService.KEY_MESSAGELITE_TEXT),
                         intent.getLongExtra(WebSocketService.KEY_MESSAGELITE_TIMECREATED, -1)
                 );
+            }
+            else if (objectType == WebSocketService.TYPE_CONNSTATUSCHANGED) {
+                boolean connected = intent.getBooleanExtra(WebSocketService.KEY_CONNSTATUS, false);
+                setUiConnectionState(connected);
             }
         }
     }
@@ -126,6 +134,8 @@ public class RoomActivity extends AppCompatActivity {
         setUpRecyclerView();
         setUpBroadcastReceiver();
         startWebSocketsService();
+
+        setUiConnectionState(false);
     }
 
     @Override
@@ -257,5 +267,35 @@ public class RoomActivity extends AppCompatActivity {
     private void bindWebSocketsService() {
         Intent webSocketsService = new Intent(this, WebSocketService.class);
         bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void setUiConnectionState(boolean connected) {
+        setAddRoomButtonEnabled(connected);
+
+        boolean shouldShowNoConnectionMsg = !connected;
+        setNoConnectionMessageVisible(shouldShowNoConnectionMsg);
+    }
+
+    private void setAddRoomButtonEnabled(boolean enabled) {
+        addRoomButton.setEnabled(enabled);
+
+        if (enabled) {
+            addRoomButton.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.fabEnabledBg)));
+            addRoomButton.clearColorFilter();
+        }
+        else {
+            addRoomButton.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.fabDisabledBg)));
+            addRoomButton.setColorFilter(ContextCompat.getColor(this, R.color.fabDisabledFg));
+        }
+
+    }
+
+    private void setNoConnectionMessageVisible(boolean visible) {
+        if (visible) {
+            noConnectionMessage.setVisibility(View.VISIBLE);
+        }
+        else {
+            noConnectionMessage.setVisibility(View.GONE);
+        }
     }
 }

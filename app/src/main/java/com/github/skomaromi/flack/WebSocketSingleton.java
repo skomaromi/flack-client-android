@@ -82,4 +82,11 @@ public class WebSocketSingleton {
     public static void send(String message) {
         mWsManager.sendMessage(message);
     }
+
+    public static boolean isConnected() {
+        if (mWsManager != null) {
+            return mWsManager.isWsConnected();
+        }
+        return false;
+    }
 }

@@ -1,8 +1,14 @@
 package com.github.skomaromi.flack;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.AsyncTask;
+import android.os.IBinder;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -21,12 +27,27 @@ public class FilePickActivity extends AppCompatActivity implements SwipeRefreshL
     @BindView(R.id.filepick_rv) RecyclerView recyclerView;
     @BindView(R.id.filepick_srl) SwipeRefreshLayout swipeRefreshLayout;
     @BindView(R.id.filepick_tv_nofiles) TextView noFilesMessage;
+    @BindView(R.id.filepick_el_noconnection) View noConnectionMessage;
 
     public static final String KEY_FILE_SERVERID = "file_server_id";
 
     private ArrayList<File> mFileArrayList;
     private FilePickAdapter mAdapter;
     private SqlHelper mSqlHelper;
+
+    private WebSocketService mService;
+    private FilePickBroadcastReceiver mBroadcastReceiver;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
+            mService = binder.getService();
+            setUiConnectionState(mService.isConnected());
+        }
+
+        @Override public void onServiceDisconnected(ComponentName name) {}
+    };
 
     private FileClickCallback mCallback = new FileClickCallback() {
         @Override
@@ -39,6 +60,18 @@ public class FilePickActivity extends AppCompatActivity implements SwipeRefreshL
             finish();
         }
     };
+
+    private class FilePickBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int objectType = intent.getIntExtra(WebSocketService.KEY_OBJECTTYPE, -1);
+
+            if (objectType == WebSocketService.TYPE_CONNSTATUSCHANGED) {
+                boolean connected = intent.getBooleanExtra(WebSocketService.KEY_CONNSTATUS, false);
+                setUiConnectionState(connected);
+            }
+        }
+    }
 
     private class BackgroundFileFetchTask extends AsyncTask<Void, Void, Void> {
         @Override
@@ -73,6 +106,28 @@ public class FilePickActivity extends AppCompatActivity implements SwipeRefreshL
 
         getSupportActionBar().setHomeAsUpIndicator(R.drawable.icon_close_fff);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+        setUpBroadcastReceiver();
+
+        setUiConnectionState(false);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        bindWebSocketsService();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unbindService(mConnection);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(mBroadcastReceiver);
     }
 
     @Override
@@ -89,6 +144,15 @@ public class FilePickActivity extends AppCompatActivity implements SwipeRefreshL
                 return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void setUpBroadcastReceiver() {
+        mBroadcastReceiver = new FilePickBroadcastReceiver();
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Constants.APP_PKG_NAME);
+
+        registerReceiver(mBroadcastReceiver, filter);
     }
 
     private void setUpRecyclerView() {
@@ -111,6 +175,27 @@ public class FilePickActivity extends AppCompatActivity implements SwipeRefreshL
         }
         else {
             noFilesMessage.setVisibility(View.GONE);
+        }
+    }
+
+    private void bindWebSocketsService() {
+        Intent webSocketsService = new Intent(this, WebSocketService.class);
+        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void setUiConnectionState(boolean connected) {
+        swipeRefreshLayout.setEnabled(connected);
+
+        boolean shouldShowNoConnectionMsg = !connected;
+        setNoConnectionMessageVisible(shouldShowNoConnectionMsg);
+    }
+
+    private void setNoConnectionMessageVisible(boolean visible) {
+        if (visible) {
+            noConnectionMessage.setVisibility(View.VISIBLE);
+        }
+        else {
+            noConnectionMessage.setVisibility(View.GONE);
         }
     }
 }

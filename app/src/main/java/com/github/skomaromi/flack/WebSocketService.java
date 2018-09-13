@@ -4,7 +4,6 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
@@ -25,6 +24,7 @@ public class WebSocketService extends Service {
     public static final int TYPE_ROOM = 1;
     public static final int TYPE_MESSAGE = 2;
     public static final int TYPE_MESSAGELITE = 3;
+    public static final int TYPE_CONNSTATUSCHANGED = 4;
 
     public static final String KEY_OBJECTTYPE = "type";
 
@@ -47,6 +47,8 @@ public class WebSocketService extends Service {
     public static final String KEY_MESSAGELITE_TEXT = "text";
     public static final String KEY_MESSAGELITE_TIMECREATED = "time_created";
 
+    public static final String KEY_CONNSTATUS = "connection_status";
+
     private final IBinder mBinder = new WebSocketBinder();
     private SharedPreferencesHelper prefs;
     private FlackWsStatusListener listener;
@@ -65,6 +67,7 @@ public class WebSocketService extends Service {
         public void onOpen(Response response) {
             super.onOpen(response);
             Log.d(Constants.APP_NAME, "FWSL: websocket open!");
+            sendConnectionChangeBroadcast(true);
         }
 
         @Override
@@ -74,6 +77,7 @@ public class WebSocketService extends Service {
                 t.printStackTrace();
             }
             Log.d(Constants.APP_NAME, "FWSL: websocket failure");
+            sendConnectionChangeBroadcast(false);
         }
 
         @Override
@@ -548,6 +552,16 @@ public class WebSocketService extends Service {
         sendBroadcast(broadcast);
     }
 
+    private void sendConnectionChangeBroadcast(boolean connected) {
+        Intent broadcast = new Intent();
+        broadcast.setAction(Constants.APP_PKG_NAME);
+
+        broadcast.putExtra(KEY_OBJECTTYPE, TYPE_CONNSTATUSCHANGED);
+        broadcast.putExtra(KEY_CONNSTATUS, connected);
+
+        sendBroadcast(broadcast);
+    }
+
     private void updateRoomSyncData(int id, long time) {
         long oldRoomTime = prefs.getLong(SharedPreferencesHelper.KEY_SYNC_ROOMTIME);
 
@@ -687,5 +701,9 @@ public class WebSocketService extends Service {
         }
 
         WebSocketSingleton.send(message);
+    }
+
+    public boolean isConnected() {
+        return WebSocketSingleton.isConnected();
     }
 }

@@ -1,0 +1,28 @@
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/noconnmsg_rl_noconnection"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_alignParentTop="true"
+    android:background="@color/colorPrimaryDark"
+    android:padding="8dp"
+    android:clickable="true">
+
+    <ImageView
+        android:id="@+id/noconnmsg_iv_noconnection"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/icon_noconnection_fff"
+        android:layout_marginEnd="8dp"
+        android:layout_centerVertical="true" />
+
+    <TextView
+        android:id="@+id/noconnmsg_tv_noconnection"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/textOnPrimary"
+        android:text="Server unreachable."
+        android:layout_toEndOf="@id/noconnmsg_iv_noconnection"
+        android:layout_centerVertical="true" />
+
+</RelativeLayout>

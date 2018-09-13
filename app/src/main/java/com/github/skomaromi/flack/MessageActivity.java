@@ -67,6 +67,9 @@ public class MessageActivity extends AppCompatActivity {
     @BindView(R.id.message_btn_addfile)
     ImageButton fileButton;
 
+    @BindView(R.id.message_el_noconnection)
+    View noConnectionMessage;
+
     public static final String KEY_ROOMID = "room_id";
 
     private int roomId;
@@ -89,11 +92,14 @@ public class MessageActivity extends AppCompatActivity {
 
     private MessageFile mPendingDownload;
 
+    private boolean mConnected;
+
     private ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
             mService = binder.getService();
+            setUiConnectionState(mService.isConnected());
         }
 
         @Override public void onServiceDisconnected(ComponentName name) {}
@@ -103,7 +109,10 @@ public class MessageActivity extends AppCompatActivity {
         @Override
         public void onClick(Message message) {
             MessageFile file = message.getFile();
-            if (!hasWritePermission()) {
+            if (!mConnected) {
+                showShortToast("No connection.");
+            }
+            else if (!hasWritePermission()) {
                 setPendingDownload(file);
                 requestWritePermission();
             }
@@ -170,6 +179,10 @@ public class MessageActivity extends AppCompatActivity {
                         location,
                         file
                 );
+            }
+            else if (objectType == WebSocketService.TYPE_CONNSTATUSCHANGED) {
+                boolean connected = intent.getBooleanExtra(WebSocketService.KEY_CONNSTATUS, false);
+                setUiConnectionState(connected);
             }
         }
     }
@@ -302,13 +315,17 @@ public class MessageActivity extends AppCompatActivity {
 
     @OnTextChanged(R.id.message_et_text)
     public void messageTextChanged() {
-        String messageText;
+        validateInputs();
+    }
 
-        messageText = messageTextField.getText().toString();
-
-        boolean shouldEnable = !messageText.isEmpty();
-
-        sendButton.setEnabled(shouldEnable);
+    private void validateInputs() {
+        String messageText = messageTextField.getText().toString();
+        if (!messageText.isEmpty() && mConnected) {
+            sendButton.setEnabled(true);
+        }
+        else {
+            sendButton.setEnabled(false);
+        }
     }
 
     @OnClick(R.id.message_btn_addlocation)
@@ -714,6 +731,8 @@ public class MessageActivity extends AppCompatActivity {
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         Log.d(Constants.APP_NAME, String.format("MessageActivity started with roomId '%d'!", roomId));
+
+        setUiConnectionState(false);
     }
 
     @Override
@@ -864,5 +883,28 @@ public class MessageActivity extends AppCompatActivity {
     private void bindWebSocketsService() {
         Intent webSocketsService = new Intent(this, WebSocketService.class);
         bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void setUiConnectionState(boolean connected) {
+        mConnected = connected;
+
+        if (!connected) {
+            sendButton.setEnabled(false);
+        }
+        else {
+            validateInputs();
+        }
+
+        boolean shouldShowNoConnectionMsg = !connected;
+        setNoConnectionMessageVisible(shouldShowNoConnectionMsg);
+    }
+
+    private void setNoConnectionMessageVisible(boolean visible) {
+        if (visible) {
+            noConnectionMessage.setVisibility(View.VISIBLE);
+        }
+        else {
+            noConnectionMessage.setVisibility(View.GONE);
+        }
     }
 }

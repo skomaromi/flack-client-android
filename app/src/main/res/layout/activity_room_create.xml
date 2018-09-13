@@ -19,6 +19,10 @@
 
     </android.support.design.widget.TextInputLayout>
 
+    <include
+        android:id="@+id/roomcreate_el_noconnection"
+        layout="@layout/element_no_connection_message" />
+
     <TextView
         android:id="@+id/roomcreate_tv_userslabel"
         android:layout_width="wrap_content"
