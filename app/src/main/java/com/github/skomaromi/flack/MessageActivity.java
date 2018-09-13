@@ -374,17 +374,14 @@ public class MessageActivity extends AppCompatActivity {
     private boolean hasLocationPermission() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
             return true;
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-            return true;
         return false;
     }
 
     private void requestPermission() {
         String[] permissions = new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                Manifest.permission.ACCESS_FINE_LOCATION
         };
-        ActivityCompat.requestPermissions(MessageActivity.this, permissions, Constants.REQCODE_PERMISSION_LOCATION);
+        ActivityCompat.requestPermissions(this, permissions, Constants.REQCODE_PERMISSION_LOCATION);
     }
 
     @Override
@@ -392,8 +389,8 @@ public class MessageActivity extends AppCompatActivity {
         switch (requestCode) {
             case Constants.REQCODE_PERMISSION_LOCATION:
                 if (grantResults.length > 0) {
-                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED || grantResults[1] == PackageManager.PERMISSION_GRANTED) {
-                        requestUserLocationUpdates();
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                        startListeningForLocation();
                     }
                     else {
                         stopListeningForLocation();
