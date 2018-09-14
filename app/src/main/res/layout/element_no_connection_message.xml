@@ -35,6 +35,6 @@
         style="?android:attr/borderlessButtonStyle"
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true"
-        android:textColor="#82B1FF"/>
+        android:textColor="#90CAF9"/>
 
 </RelativeLayout>

@@ -10,14 +10,10 @@ import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.TextView;
 
-import butterknife.BindView;
 import butterknife.ButterKnife;
 
 public class StartActivity extends AppCompatActivity {
-    @BindView(R.id.start_tv_progress) TextView progressLabel;
-
     private BackgroundInitTask initTask;
     private SharedPreferencesHelper prefs;
 
@@ -48,18 +44,18 @@ public class StartActivity extends AppCompatActivity {
 
         @Override
         protected Integer doInBackground(Void... voids) {
-            postProgress("checking authentication data...");
+            logMessage("checking authentication data...");
             boolean hasToken = false;
             String authToken = prefs.getString(SharedPreferencesHelper.KEY_AUTHTOKEN);
             hasToken = authToken != null;
 
-            postProgress("checking if connected to a wireless network...");
+            logMessage("checking if connected to a wireless network...");
             boolean connectedToWifi = false;
             ConnectivityManager connectivityManager = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
             NetworkInfo wifi = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
             connectedToWifi = wifi.isConnected();
 
-            postProgress("testing connection to server...");
+            logMessage("testing connection to server...");
             boolean serverReachable = false;
             if (connectedToWifi) {
                 String serverAddr = prefs.getString(SharedPreferencesHelper.KEY_SERVERADDR);
@@ -86,7 +82,7 @@ public class StartActivity extends AppCompatActivity {
                 }
             }
 
-            postProgress("checking if service running...");
+            logMessage("checking if service running...");
             boolean serviceRunning = false;
             serviceRunning = FlackApplication.isServiceRunning();
 
@@ -138,25 +134,11 @@ public class StartActivity extends AppCompatActivity {
             return RETCODE_ERROR;
         }
 
-        private void postProgress(String message) {
-            setProgressLabelText(message);
-            logMessage(message);
-        }
-
         private void logMessage(String message) {
             Log.d(
                     Constants.APP_NAME,
                     String.format("BackgroundInitTask: %s", message)
             );
-        }
-
-        private void setProgressLabelText(final String text) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    progressLabel.setText(text);
-                }
-            });
         }
 
         private void closeParentActivity() {

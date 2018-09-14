@@ -4,23 +4,11 @@
     android:layout_height="match_parent"
     android:background="@color/colorPrimary">
 
-    <TextView
-        android:id="@+id/start_tv_flack"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerVertical="true"
-        android:layout_centerHorizontal="true"
-        android:text="flack"
-        android:textColor="@color/textOnPrimary" />
-
-    <TextView
-        android:id="@+id/start_tv_progress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="16dp"
-        android:text="initializing"
-        android:textColor="@color/textOnPrimary" />
+    <ImageView
+        android:id="@+id/start_iv_logo"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_centerInParent="true"
+        android:src="@drawable/logo" />
 
 </RelativeLayout>

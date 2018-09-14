@@ -9,7 +9,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_alignParentTop="true"
-        android:layout_above="@id/message_ll_messageinputgroup" />
+        android:layout_above="@id/message_ll_messageinputgroup"
+        android:background="#eee" />
 
     <com.github.skomaromi.flack.NoConnectionMessage
         android:id="@+id/message_el_noconnection"
