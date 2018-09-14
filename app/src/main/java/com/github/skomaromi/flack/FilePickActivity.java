@@ -27,7 +27,7 @@ public class FilePickActivity extends AppCompatActivity implements SwipeRefreshL
     @BindView(R.id.filepick_rv) RecyclerView recyclerView;
     @BindView(R.id.filepick_srl) SwipeRefreshLayout swipeRefreshLayout;
     @BindView(R.id.filepick_tv_nofiles) TextView noFilesMessage;
-    @BindView(R.id.filepick_el_noconnection) View noConnectionMessage;
+    @BindView(R.id.filepick_el_noconnection) NoConnectionMessage noConnectionMessage;
 
     public static final String KEY_FILE_SERVERID = "file_server_id";
 

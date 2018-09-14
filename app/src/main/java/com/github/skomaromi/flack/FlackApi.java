@@ -46,11 +46,6 @@ public class FlackApi {
         this.address = address;
     }
 
-    public FlackApi(String address, String token) {
-        this.address = address;
-        this.token = token;
-    }
-
     public static boolean testConnection(String address) {
         OkHttpClient client = new OkHttpClient();
 

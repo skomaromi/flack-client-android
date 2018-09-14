@@ -14,9 +14,10 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <include
+        <com.github.skomaromi.flack.NoConnectionMessage
             android:id="@+id/file_el_noconnection"
-            layout="@layout/element_no_connection_message" />
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
         <TextView
             android:id="@+id/file_tv_nofiles"

@@ -4,23 +4,34 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.rabtman.wsmanager.WsManager;
 import com.rabtman.wsmanager.listener.WsStatusListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Locale;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
+import okhttp3.OkHttpClient;
 import okhttp3.Response;
 
 public class WebSocketService extends Service {
+    private static final String PROTO = "ws";
+
     public static final int TYPE_ROOM = 1;
     public static final int TYPE_MESSAGE = 2;
     public static final int TYPE_MESSAGELITE = 3;
@@ -51,6 +62,8 @@ public class WebSocketService extends Service {
 
     private final IBinder mBinder = new WebSocketBinder();
     private SharedPreferencesHelper prefs;
+    private WsManager mWebSocket;
+    private NetworkBroadcastReceiver mNetworkReceiver;
     private FlackWsStatusListener listener;
     private SqlHelper sqlHelper;
     private int userId;
@@ -145,8 +158,6 @@ public class WebSocketService extends Service {
                 // response
                 //
                 if (textType.equals("response")) {
-                    // TODO: do response stuff here
-                    // if response, store and UI
                     JSONObject attr = textJson.getJSONObject("attr");
 
                     String responseObjectType = attr.getString("object");
@@ -389,6 +400,24 @@ public class WebSocketService extends Service {
         }
     }
 
+    private class NetworkBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(ConnectivityManager.CONNECTIVITY_ACTION)) {
+                boolean isWifiActive = false;
+                ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                if (activeNetwork != null) {
+                    isWifiActive = activeNetwork.getType() == ConnectivityManager.TYPE_WIFI;
+                }
+
+                if (isWifiActive && !isConnected()) {
+                    connect();
+                }
+            }
+        }
+    }
+
     public class WebSocketBinder extends Binder {
         WebSocketService getService() {
             return WebSocketService.this;
@@ -402,6 +431,22 @@ public class WebSocketService extends Service {
         Log.d(Constants.APP_NAME, "WebSocketService onCreate");
 
         alreadyStarted = false;
+        sqlHelper = new SqlHelper(this);
+        prefs = new SharedPreferencesHelper(this);
+
+        userId = prefs.getInt(SharedPreferencesHelper.KEY_USERID);
+        usernameUnique = String.format(
+                "%s_%s",
+
+                prefs.getString(SharedPreferencesHelper.KEY_USERNAME),
+                generateRandomString(4)
+        );
+
+        listener = new FlackWsStatusListener();
+
+        setUpNetworkBroadcastReceiver();
+
+        FlackApplication.setServiceRunning(true);
     }
 
     @Override
@@ -409,47 +454,7 @@ public class WebSocketService extends Service {
         Log.d(Constants.APP_NAME, "WebSocketService onStartCommand");
 
         if (!alreadyStarted) {
-            prefs = new SharedPreferencesHelper(this);
-
-            userId = prefs.getInt(SharedPreferencesHelper.KEY_USERID);
-
-            usernameUnique = String.format(
-                    "%s_%s",
-
-                    prefs.getString(SharedPreferencesHelper.KEY_USERNAME),
-                    generateRandomString(4)
-            );
-
-            sqlHelper = new SqlHelper(this);
-
-            listener = new FlackWsStatusListener();
-
-            if (!WebSocketSingleton.create(this)) {
-                int roomId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_ROOMID);
-                long roomTime = prefs.getLong(SharedPreferencesHelper.KEY_SYNC_ROOMTIME);
-
-                int messageId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_MESSAGEID);
-                long messageTime = prefs.getLong(SharedPreferencesHelper.KEY_SYNC_MESSAGETIME);
-
-                if (roomId != -1 && messageId != -1) {
-                    if (roomTime > messageTime) {
-                        messageId = -1;
-                    }
-                    else {
-                        roomId = -1;
-                    }
-                }
-
-                WebSocketSingleton.initialize(
-                        prefs.getString(SharedPreferencesHelper.KEY_SERVERADDR),
-                        prefs.getString(SharedPreferencesHelper.KEY_AUTHTOKEN),
-                        roomId,
-                        messageId,
-                        usernameUnique,
-                        listener
-                );
-                WebSocketSingleton.create(this);
-            }
+            connect();
         }
         alreadyStarted = true;
 
@@ -460,6 +465,13 @@ public class WebSocketService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(mNetworkReceiver);
+        FlackApplication.setServiceRunning(false);
     }
 
     private void sendRoomNotification(int roomId, String roomName, String creator) {
@@ -641,7 +653,7 @@ public class WebSocketService extends Service {
             return;
         }
 
-        WebSocketSingleton.send(room);
+        mWebSocket.sendMessage(room);
     }
 
     public void sendMessage(String content, int fileId, int roomId, Location location) {
@@ -700,10 +712,69 @@ public class WebSocketService extends Service {
             return;
         }
 
-        WebSocketSingleton.send(message);
+        mWebSocket.sendMessage(message);
     }
 
     public boolean isConnected() {
-        return WebSocketSingleton.isConnected();
+        if (mWebSocket != null) {
+            return mWebSocket.isWsConnected();
+        }
+        return false;
+    }
+
+    public void connect() {
+        if (mWebSocket != null) {
+            mWebSocket.stopConnect();
+            mWebSocket = null;
+        }
+
+        OkHttpClient client = new OkHttpClient().newBuilder()
+                                      .pingInterval(15, TimeUnit.SECONDS)
+                                      .retryOnConnectionFailure(true)
+                                      .build();
+
+        int roomId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_ROOMID);
+        long roomTime = prefs.getLong(SharedPreferencesHelper.KEY_SYNC_ROOMTIME);
+
+        int messageId = prefs.getInt(SharedPreferencesHelper.KEY_SYNC_MESSAGEID);
+        long messageTime = prefs.getLong(SharedPreferencesHelper.KEY_SYNC_MESSAGETIME);
+
+        if (roomId != -1 && messageId != -1) {
+            if (roomTime > messageTime) {
+                messageId = -1;
+            }
+            else {
+                roomId = -1;
+            }
+        }
+
+        String url = String.format(
+                Locale.ENGLISH,
+                "%s://%s:%d/%s/%d/%d/",
+
+                PROTO,
+                prefs.getString(SharedPreferencesHelper.KEY_SERVERADDR),
+                Constants.SERVER_PORT,
+                prefs.getString(SharedPreferencesHelper.KEY_AUTHTOKEN),
+                roomId,
+                messageId
+        );
+
+
+        mWebSocket = new WsManager.Builder(this)
+                             .wsUrl(url)
+                             .needReconnect(true).client(client).build();
+
+        mWebSocket.setWsStatusListener(listener);
+        mWebSocket.startConnect();
+    }
+
+    private void setUpNetworkBroadcastReceiver() {
+        mNetworkReceiver = new NetworkBroadcastReceiver();
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+
+        registerReceiver(mNetworkReceiver, filter);
     }
 }

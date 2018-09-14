@@ -32,16 +32,8 @@ public class RoomActivity extends AppCompatActivity {
     @BindView(R.id.room_rv) RecyclerView recyclerView;
     @BindView(R.id.room_tv_norooms) TextView noRoomsMessage;
     @BindView(R.id.room_fab_addroom) FloatingActionButton addRoomButton;
-    @BindView(R.id.room_el_noconnection) View noConnectionMessage;
+    @BindView(R.id.room_el_noconnection) NoConnectionMessage noConnectionMessage;
 
-    public static final String KEY_ADDRESS = "address";
-    public static final String KEY_AUTHTOKEN = "authtoken";
-
-    /*
-     * TODO: remove address and token variables as well as any related code
-     * such as intent data insertion code in StartActivity
-     */
-    private String address, token;
     private WebSocketService mService;
 
     private ArrayList<Room> mRoomArrayList;
@@ -127,9 +119,6 @@ public class RoomActivity extends AppCompatActivity {
 
         ButterKnife.bind(this);
 
-        Intent data = getIntent();
-        handleIntentData(data);
-
         mSqlHelper = new SqlHelper(this);
         setUpRecyclerView();
         setUpBroadcastReceiver();
@@ -181,6 +170,9 @@ public class RoomActivity extends AppCompatActivity {
             case R.id.room_mi_files:
                 startFileActivity();
                 return true;
+            case R.id.room_mi_server:
+                startServerInputActivity();
+                return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -194,16 +186,10 @@ public class RoomActivity extends AppCompatActivity {
         registerReceiver(mBroadcastReceiver, filter);
     }
 
-    private void handleIntentData(Intent data) {
-        if (data != null) {
-            if (data.hasExtra(KEY_ADDRESS)) {
-                address = data.getStringExtra(KEY_ADDRESS);
-            }
-
-            if (data.hasExtra(KEY_AUTHTOKEN)) {
-                token = data.getStringExtra(KEY_AUTHTOKEN);
-            }
-        }
+    private void startServerInputActivity() {
+        Intent serverInputActivity = new Intent(this, ServerInputActivity.class);
+        serverInputActivity.putExtra(ServerInputActivity.KEY_FROM_STARTACTIVITY, false);
+        startActivity(serverInputActivity);
     }
 
     private void startFileActivity() {

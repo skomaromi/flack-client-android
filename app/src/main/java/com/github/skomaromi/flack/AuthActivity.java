@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.AsyncTask;
 import android.support.design.widget.TextInputEditText;
@@ -40,12 +39,10 @@ public class AuthActivity extends AppCompatActivity {
     @BindView(R.id.auth_btn_register)
     Button registerButton;
 
-    public static final String KEY_ADDRESS = "address";
-    public static final String KEY_AUTHTOKEN = "authtoken";
-
     private final String usernameRegex = "^[a-z0-9\\.\\-]*$";
 
-    private String address;
+    private String mAddress;
+    private SharedPreferencesHelper mPrefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,21 +53,13 @@ public class AuthActivity extends AppCompatActivity {
         loginButton.setEnabled(false);
         registerButton.setEnabled(false);
 
-        Intent data = getIntent();
-        handleIntentData(data);
+        mPrefs = new SharedPreferencesHelper(this);
+        mAddress = mPrefs.getString(SharedPreferencesHelper.KEY_SERVERADDR);
     }
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-    }
-
-    private void handleIntentData(Intent data) {
-        if (data != null) {
-            if (data.hasExtra(KEY_ADDRESS)) {
-                address = data.getStringExtra(KEY_ADDRESS);
-            }
-        }
     }
 
     @OnTextChanged({
@@ -118,7 +107,7 @@ public class AuthActivity extends AppCompatActivity {
             password = loginPasswordField.getText().toString();
 
             // TODO: detect connection errors
-            FlackApi api = new FlackApi(address);
+            FlackApi api = new FlackApi(mAddress);
             token = api.login(username, password, activity);
 
             return token;
@@ -138,10 +127,9 @@ public class AuthActivity extends AppCompatActivity {
         if (token != null) {
             Log.d(Constants.APP_NAME, "(ok) token retrieved");
 
-            Intent data = new Intent();
+            mPrefs.save(SharedPreferencesHelper.KEY_AUTHTOKEN, token);
 
-            data.putExtra(KEY_AUTHTOKEN, token);
-            setResult(Activity.RESULT_OK, data);
+            setResult(Activity.RESULT_OK);
             finish();
         }
         else {
@@ -251,7 +239,7 @@ public class AuthActivity extends AppCompatActivity {
             username = registerUsernameField.getText().toString();
             password = registerPasswordField.getText().toString();
 
-            FlackApi api = new FlackApi(address);
+            FlackApi api = new FlackApi(mAddress);
             token = api.register(username, password, activity);
 
             return token;
@@ -269,15 +257,11 @@ public class AuthActivity extends AppCompatActivity {
 
     private void registerTaskReturnHandler(String token) {
         if (token != null) {
-            Log.d(
-                    Constants.APP_NAME,
-                    "(ok) registration successful, token retrieved"
-            );
+            Log.d(Constants.APP_NAME, "(ok) registration successful, token retrieved");
 
-            Intent data = new Intent();
+            mPrefs.save(SharedPreferencesHelper.KEY_AUTHTOKEN, token);
 
-            data.putExtra(KEY_AUTHTOKEN, token);
-            setResult(Activity.RESULT_OK, data);
+            setResult(Activity.RESULT_OK);
             finish();
         }
         else {

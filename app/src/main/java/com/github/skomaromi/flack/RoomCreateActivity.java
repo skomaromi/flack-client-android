@@ -39,7 +39,7 @@ public class RoomCreateActivity extends AppCompatActivity {
     @BindView(R.id.roomcreate_tv_userslabel) TextView userListLabel;
     @BindView(R.id.roomcreate_tv_nousers) TextView noUsersMessage;
 
-    @BindView(R.id.roomcreate_el_noconnection) View noConnectionMessage;
+    @BindView(R.id.roomcreate_el_noconnection) NoConnectionMessage noConnectionMessage;
 
     public static final String KEY_NAME = "room_name";
     public static final String KEY_PARTICIPANTS = "room_participants";

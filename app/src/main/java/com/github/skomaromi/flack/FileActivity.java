@@ -41,7 +41,7 @@ public class FileActivity extends AppCompatActivity implements SwipeRefreshLayou
     @BindView(R.id.file_rv) RecyclerView recyclerView;
     @BindView(R.id.file_srl) SwipeRefreshLayout swipeRefreshLayout;
     @BindView(R.id.file_tv_nofiles) TextView noFilesMessage;
-    @BindView(R.id.file_el_noconnection) View noConnectionMessage;
+    @BindView(R.id.file_el_noconnection) NoConnectionMessage noConnectionMessage;
 
     private ArrayList<File> mFileArrayList;
     private FileAdapter mAdapter;

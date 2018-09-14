@@ -48,30 +48,54 @@ public class StartActivity extends AppCompatActivity {
 
         @Override
         protected Integer doInBackground(Void... voids) {
-            /* TODO: allow listening for connection changes
-             * > check if has authtoken
-             * > if yes, offer to show old messages
-             *   > on reconnect sync via API and wait for WS events
-             */
+            postProgress("checking authentication data...");
+            boolean hasToken = false;
+            String authToken = prefs.getString(SharedPreferencesHelper.KEY_AUTHTOKEN);
+            hasToken = authToken != null;
 
-            //
-            // step 1: check connection
-            //
-            postProgress("testing connection...");
+            postProgress("checking if connected to a wireless network...");
+            boolean connectedToWifi = false;
+            ConnectivityManager connectivityManager = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+            NetworkInfo wifi = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+            connectedToWifi = wifi.isConnected();
 
-            ConnectivityManager connectivityManager =
-                    (ConnectivityManager)
-                            getSystemService(CONNECTIVITY_SERVICE);
+            postProgress("testing connection to server...");
+            boolean serverReachable = false;
+            if (connectedToWifi) {
+                String serverAddr = prefs.getString(SharedPreferencesHelper.KEY_SERVERADDR);
+                if (serverAddr != null) {
+                    if (FlackApi.testConnection(serverAddr)) {
+                        serverReachable = true;
+                    }
+                }
+                else {
+                    if (FlackApi.testConnection(Constants.SERVER_DEFAULT_ADDR)) {
+                        prefs.save(
+                                SharedPreferencesHelper.KEY_SERVERADDR,
+                                Constants.SERVER_DEFAULT_ADDR
+                        );
+                        serverReachable = true;
+                    }
+                    else if (FlackApi.testConnection(Constants.SERVER_DEFAULT_ADDR_ALT)) {
+                        prefs.save(
+                                SharedPreferencesHelper.KEY_SERVERADDR,
+                                Constants.SERVER_DEFAULT_ADDR_ALT
+                        );
+                        serverReachable = true;
+                    }
+                }
+            }
 
-            NetworkInfo wifi =
-                    connectivityManager.getNetworkInfo(
-                            ConnectivityManager.TYPE_WIFI
-                    );
+            postProgress("checking if service running...");
+            boolean serviceRunning = false;
+            serviceRunning = FlackApplication.isServiceRunning();
 
-            // if wifi off, show dialog and close app on OK
-            if (!wifi.isConnected()) {
-                logMessage("(err) no wifi connection");
+            boolean shouldWarnClose = !hasToken && !connectedToWifi;
+            boolean shouldShowServerInputActivity = !hasToken && connectedToWifi && !serverReachable;
+            boolean shouldShowAuthActivity = !hasToken && connectedToWifi && serverReachable;
+            boolean shouldShowRoomsActivity = hasToken || serviceRunning;
 
+            if (shouldWarnClose) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -80,132 +104,38 @@ public class StartActivity extends AppCompatActivity {
                         builder.setMessage("Device not connected to a " +
                                                    "wireless network. " +
                                                    "Wireless connection is " +
-                                                   "necessary to use Flack.");
+                                                   "necessary to proceed.");
                         builder.setPositiveButton(
                                 "Quit", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog,
-                                                int which) {
-                                dialog.dismiss();
-                                closeParentActivity();
-                            }
-                        });
+                                    @Override
+                                    public void onClick(DialogInterface dialog,
+                                                        int which) {
+                                        dialog.dismiss();
+                                        closeParentActivity();
+                                    }
+                                });
 
                         AlertDialog dialog = builder.create();
                         dialog.show();
                     }
                 });
-
                 return RETCODE_ERROR;
             }
-
-            //
-            // step 2: check server
-            //
-            postProgress("checking stored server settings...");
-
-            String serverAddr = prefs.getString(
-                    SharedPreferencesHelper.KEY_SERVERADDR
-            );
-            if (serverAddr != null) {
-                postProgress("testing connection to server...");
-
-                if (!FlackApi.testConnection(serverAddr)) {
-                    // show dialog
-                    final String addr = serverAddr;
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            AlertDialog.Builder builder =
-                                    new AlertDialog.Builder(activity);
-                            builder.setMessage("Cannot reach currently " +
-                                                       "configured server. " +
-                                                       "Do you want to quit " +
-                                                       "application or " +
-                                                       "modify server address?"
-                            );
-                            builder.setNegativeButton(
-                                    "Quit",
-                                    new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog,
-                                                    int which) {
-                                    dialog.dismiss();
-                                    closeParentActivity();
-                                }
-                            });
-                            builder.setPositiveButton(
-                                    "Modify",
-                                    new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog,
-                                                    int which) {
-                                    dialog.dismiss();
-                                    showServerInputActivity(addr);
-                                }
-                            });
-                            AlertDialog dialog = builder.create();
-                            dialog.show();
-                        }
-                    });
-                    return RETCODE_ERROR;
-                }
-            }
-            else {
-                postProgress("testing default settings...");
-
-                if (FlackApi.testConnection(Constants.SERVER_DEFAULT_ADDR)) {
-                    logMessage("storing primary default server address...");
-                    prefs.save(
-                            SharedPreferencesHelper.KEY_SERVERADDR,
-                            Constants.SERVER_DEFAULT_ADDR
-                    );
-                    serverAddr = Constants.SERVER_DEFAULT_ADDR;
-                }
-                else if (FlackApi.testConnection(
-                        Constants.SERVER_DEFAULT_ADDR_ALT
-                )) {
-                    logMessage("storing secondary default server address...");
-                    prefs.save(
-                            SharedPreferencesHelper.KEY_SERVERADDR,
-                            Constants.SERVER_DEFAULT_ADDR_ALT
-                    );
-
-                    serverAddr = Constants.SERVER_DEFAULT_ADDR_ALT;
-                }
-                else {
-                    logMessage(
-                            "both addresses failed, asking user for manual " +
-                                    "input..."
-                    );
-                    showServerInputActivity(null);
-                    return RETCODE_ERROR;
-                }
-            }
-
-            //
-            // step 3: authentication, room list
-            //
-            postProgress("checking authentication data...");
-
-            String authToken = prefs.getString(
-                    SharedPreferencesHelper.KEY_AUTHTOKEN
-            );
-            if (authToken != null) {
-                showRoomsActivity(serverAddr, authToken);
-            }
-            else {
-                showAuthActivity(serverAddr);
+            else if (shouldShowServerInputActivity) {
+                startServerInputActivity();
                 return RETCODE_ERROR;
             }
+            else if (shouldShowAuthActivity) {
+                startAuthActivity();
+                return RETCODE_ERROR;
+            }
+            else if (shouldShowRoomsActivity) {
+                startRoomsActivity();
+                return RETCODE_OK;
+            }
 
-            postProgress("everything okay!");
-            return RETCODE_OK;
-        }
-
-        @Override
-        protected void onPostExecute(Integer result) {
-            Log.d(Constants.APP_NAME, "BackgroundInitTask::onPostExecute");
+            // this should not be reachable, so returning RETCODE_ERROR
+            return RETCODE_ERROR;
         }
 
         private void postProgress(String message) {
@@ -239,36 +169,18 @@ public class StartActivity extends AppCompatActivity {
         }
     }
 
-    private void showServerInputActivity(String address) {
-        Intent serverInputActivity = new Intent(
-                this, ServerInputActivity.class
-        );
-
-        if (address != null) {
-            serverInputActivity.putExtra(
-                    ServerInputActivity.KEY_ADDRESS,
-                    address
-            );
-        }
-
-        startActivityForResult(
-                serverInputActivity,
-                Constants.REQCODE_ACTIVITY_SERVERINPUT
-        );
+    private void startServerInputActivity() {
+        Intent serverInputActivity = new Intent(this, ServerInputActivity.class);
+        startActivityForResult(serverInputActivity, Constants.REQCODE_ACTIVITY_SERVERINPUT);
     }
 
-    private void showAuthActivity(String address) {
+    private void startAuthActivity() {
         Intent authActivity = new Intent(this, AuthActivity.class);
-        authActivity.putExtra(AuthActivity.KEY_ADDRESS, address);
-
         startActivityForResult(authActivity, Constants.REQCODE_ACTIVITY_AUTH);
     }
 
-    private void showRoomsActivity(String address, String token) {
+    private void startRoomsActivity() {
         Intent roomsActivity = new Intent(this, RoomActivity.class);
-        roomsActivity.putExtra(RoomActivity.KEY_ADDRESS, address);
-        roomsActivity.putExtra(RoomActivity.KEY_AUTHTOKEN, token);
-
         startActivity(roomsActivity);
         finish();
     }
@@ -278,63 +190,20 @@ public class StartActivity extends AppCompatActivity {
                                     Intent data) {
         if (requestCode == Constants.REQCODE_ACTIVITY_SERVERINPUT) {
             if (resultCode == Activity.RESULT_OK) {
-                // store returned data
-                Log.d(
-                        Constants.APP_NAME,
-                        "ServerInputActivity returned RESULT_OK"
-                );
-
-                String address = data.getStringExtra(
-                        ServerInputActivity.KEY_ADDRESS
-                );
-
-                prefs.save(SharedPreferencesHelper.KEY_SERVERADDR, address);
-
                 init();
             }
             else {
-                // user manually exited the ServerInputActivity
+                // user exited before providing valid input
                 finish();
             }
         }
         else if (requestCode == Constants.REQCODE_ACTIVITY_AUTH) {
             if (resultCode == Activity.RESULT_OK) {
-                Log.d(Constants.APP_NAME, "AuthActivity returned RESULT_OK");
-
-                String token = data.getStringExtra(AuthActivity.KEY_AUTHTOKEN);
-
-                prefs.save(SharedPreferencesHelper.KEY_AUTHTOKEN, token);
-
                 init();
             }
             else {
                 finish();
             }
         }
-    }
-
-    // TODO: remove if not needed
-    @Override
-    protected void onStop() {
-        super.onStop();
-        Log.d(Constants.APP_NAME, "onStop");
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        Log.d(Constants.APP_NAME, "onDestroy");
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        Log.d(Constants.APP_NAME, "onPause");
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        Log.d(Constants.APP_NAME, "onResume");
     }
 }

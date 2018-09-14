@@ -4,5 +4,8 @@
     <item
         android:id="@+id/room_mi_files"
         android:title="Shared files"/>
+    <item
+        android:id="@+id/room_mi_server"
+        android:title="Configure server address"/>
 
 </menu>

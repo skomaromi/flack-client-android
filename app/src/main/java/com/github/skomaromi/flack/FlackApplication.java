@@ -8,6 +8,7 @@ public class FlackApplication extends Application {
 
     private static boolean isAnyActivityVisible = false;
     private static int currentRoom;
+    private static boolean serviceRunning = false;
 
     public static boolean isAnyActivityVisible() {
         return isAnyActivityVisible;
@@ -27,5 +28,14 @@ public class FlackApplication extends Application {
 
     public static boolean checkIsOnRoomList() {
         return currentRoom == ON_ROOM_LIST;
+    }
+
+
+    public static boolean isServiceRunning() {
+        return serviceRunning;
+    }
+
+    public static void setServiceRunning(boolean serviceRunning) {
+        FlackApplication.serviceRunning = serviceRunning;
     }
 }

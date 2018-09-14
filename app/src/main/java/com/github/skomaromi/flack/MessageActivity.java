@@ -68,7 +68,7 @@ public class MessageActivity extends AppCompatActivity {
     ImageButton fileButton;
 
     @BindView(R.id.message_el_noconnection)
-    View noConnectionMessage;
+    NoConnectionMessage noConnectionMessage;
 
     public static final String KEY_ROOMID = "room_id";
 

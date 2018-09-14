@@ -3,13 +3,18 @@ package com.github.skomaromi.flack;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.os.AsyncTask;
+import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.EditText;
 
@@ -22,7 +27,21 @@ public class ServerInputActivity extends AppCompatActivity {
     @BindView(R.id.srvinput_btn_connect) Button connectButton;
     @BindView(R.id.srvinput_et_address) EditText addressField;
 
-    public static final String KEY_ADDRESS = "address";
+    public static final String KEY_FROM_STARTACTIVITY = "from_startactivity";
+
+    private SharedPreferencesHelper mPrefs;
+    private boolean mComingFromStartActivity;
+    private WebSocketService mService;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WebSocketService.WebSocketBinder binder = (WebSocketService.WebSocketBinder) service;
+            mService = binder.getService();
+        }
+
+        @Override public void onServiceDisconnected(ComponentName name) {}
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +53,25 @@ public class ServerInputActivity extends AppCompatActivity {
 
         Intent data = getIntent();
         handleIntentData(data);
+
+        mPrefs = new SharedPreferencesHelper(this);
+        tryPopulateUi();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (!mComingFromStartActivity) {
+            bindWebSocketsService();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (!mComingFromStartActivity) {
+            unbindService(mConnection);
+        }
     }
 
     @Override
@@ -41,13 +79,35 @@ public class ServerInputActivity extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                finish();
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     private void handleIntentData(Intent data) {
+        mComingFromStartActivity = false;
+
         if (data != null) {
-            if (data.hasExtra(KEY_ADDRESS)) {
-                String address = data.getStringExtra(KEY_ADDRESS);
-                addressField.setText(address);
+            if (data.hasExtra(KEY_FROM_STARTACTIVITY)) {
+                mComingFromStartActivity = data.getBooleanExtra(KEY_FROM_STARTACTIVITY, false);
             }
         }
+
+        if (!mComingFromStartActivity) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+//            bindWebSocketsService();
+        }
+    }
+
+    private void tryPopulateUi() {
+        String address = mPrefs.getString(SharedPreferencesHelper.KEY_SERVERADDR);
+        addressField.setText(address);
+        textFieldChanged();
     }
 
     @OnTextChanged(R.id.srvinput_et_address)
@@ -126,10 +186,13 @@ public class ServerInputActivity extends AppCompatActivity {
         if (address != null) {
             Log.d(Constants.APP_NAME, "(ok) retrieved valid server response");
 
-            Intent data = new Intent();
+            mPrefs.save(SharedPreferencesHelper.KEY_SERVERADDR, address);
 
-            data.putExtra(KEY_ADDRESS, address);
-            setResult(Activity.RESULT_OK, data);
+            if (!mComingFromStartActivity) {
+                mService.connect();
+            }
+
+            setResult(Activity.RESULT_OK);
             finish();
         }
         else {
@@ -151,5 +214,10 @@ public class ServerInputActivity extends AppCompatActivity {
             AlertDialog dialog = builder.create();
             dialog.show();
         }
+    }
+
+    private void bindWebSocketsService() {
+        Intent webSocketsService = new Intent(this, WebSocketService.class);
+        bindService(webSocketsService, mConnection, Context.BIND_AUTO_CREATE);
     }
 }
