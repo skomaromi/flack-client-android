@@ -14,7 +14,6 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.location.Criteria;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
@@ -83,7 +82,6 @@ public class MessageActivity extends AppCompatActivity {
     private ProgressDialog mProgressDialog;
     private LocationManager mLocationManager;
     private LocationListener mLocationListener;
-    private String mLocationProvider;
 
     // currently written message data
     private Location mMessageLocation;

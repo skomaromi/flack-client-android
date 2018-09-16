@@ -16,11 +16,14 @@ import butterknife.OnClick;
 
 class RoomCreateAdapter extends RecyclerView.Adapter<RoomCreateAdapter.RoomCreateViewHolder> {
     private ArrayList<User> mUsers;
+    private boolean[] mItemStates;
     private UserClickCallback mCallback;
 
     public RoomCreateAdapter(ArrayList<User> users, UserClickCallback callback) {
         mUsers = users;
         mCallback = callback;
+
+        mItemStates = new boolean[mUsers.size()];
     }
 
     @NonNull
@@ -42,6 +45,15 @@ class RoomCreateAdapter extends RecyclerView.Adapter<RoomCreateAdapter.RoomCreat
 
         String name = user.getName();
         holder.userName.setText(name);
+
+        if (position < mItemStates.length) {
+            holder.userCheckBox.setChecked(mItemStates[position]);
+        }
+        else if (mItemStates.length != mUsers.size()) {
+            // mUsers.size() changed, and we weren't notified about it
+            mItemStates = new boolean[mUsers.size()];
+        }
+
     }
 
     @Override
@@ -53,13 +65,9 @@ class RoomCreateAdapter extends RecyclerView.Adapter<RoomCreateAdapter.RoomCreat
         @BindView(R.id.roomcreate_tv_username) TextView userName;
         @BindView(R.id.roomcreate_cb_selected) CheckBox userCheckBox;
 
-        private boolean mChecked;
-
         public RoomCreateViewHolder(View itemView) {
             super(itemView);
             ButterKnife.bind(this, itemView);
-
-            mChecked = false;
         }
 
         @OnClick
@@ -68,14 +76,15 @@ class RoomCreateAdapter extends RecyclerView.Adapter<RoomCreateAdapter.RoomCreat
         }
 
         private void toggleItemState() {
-            mChecked = !mChecked;
-            mCallback.onClick(mUsers.get(getAdapterPosition()));
-            updateItem();
+            int pos = getAdapterPosition();
+            mItemStates[pos] = !mItemStates[pos];
+            updateItem(mItemStates[pos]);
+            mCallback.onClick(mUsers.get(pos));
         }
 
-        private void updateItem() {
-            userCheckBox.setChecked(mChecked);
-            itemView.setActivated(mChecked);
+        private void updateItem(boolean state) {
+            userCheckBox.setChecked(state);
+            itemView.setActivated(state);
         }
     }
 }
