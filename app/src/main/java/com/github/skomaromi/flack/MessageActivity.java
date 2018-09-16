@@ -403,9 +403,6 @@ public class MessageActivity extends AppCompatActivity {
             mLocationListener = new MessageLocationListener();
         }
 
-        Criteria criteria = new Criteria();
-        mLocationProvider = mLocationManager.getBestProvider(criteria, true);
-
         if (!hasLocationPermission()) {
             requestLocationPermission();
         }
@@ -416,12 +413,31 @@ public class MessageActivity extends AppCompatActivity {
 
     private void requestUserLocationUpdates() {
         // permissions handled by preceding hasLocationPermission() and requestLocationPermission() methods
-        mLocationManager.requestLocationUpdates(
-                mLocationProvider,
-                1000,
-                100,
-                mLocationListener
-        );
+        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        String gpsProvider = LocationManager.GPS_PROVIDER,
+               networkProvider = LocationManager.NETWORK_PROVIDER;
+
+        boolean isGpsEnabled = locationManager.isProviderEnabled(gpsProvider),
+                isNetworkEnabled = locationManager.isProviderEnabled(networkProvider);
+
+        if (isGpsEnabled) {
+            mLocationManager.requestLocationUpdates(
+                    gpsProvider,
+                    1000,
+                    100,
+                    mLocationListener
+            );
+        }
+
+        if (isNetworkEnabled) {
+            mLocationManager.requestLocationUpdates(
+                    networkProvider,
+                    1000,
+                    100,
+                    mLocationListener
+            );
+        }
     }
 
     private boolean hasLocationPermission() {
